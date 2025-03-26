@@ -9,9 +9,6 @@ from flask import Flask
 from .config import config_dict
 from .extensions import cors
 from .routes import api_bp, static_bp
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text
-
 
 def create_app(config_name='development'):
     # 初始化应用

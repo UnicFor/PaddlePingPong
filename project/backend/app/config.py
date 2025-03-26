@@ -9,6 +9,9 @@ class BaseConfig:
     STATIC_FOLDER = str(BASE_DIR / 'app/static')
 
     FRAME_FOLDER = str(BASE_DIR / 'app/data/frame')  # 测试帧路径
+    UPLOAD_FOLDER = os.path.abspath('./data/video')  # 测试视频路径
+    MAX_CONTENT_LENGTH = 1024 * 1024 * 1024  # 1GB限制
+
     STATIC_URL_PATH = ''
 
 class DevelopmentConfig(BaseConfig):
