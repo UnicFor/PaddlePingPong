@@ -9,21 +9,18 @@ HISTORY_DATA = [
         "time": "2019-01-10 12:24:22",
         "status": "expired",
         "expiry": "2024-03-20",
-        "report_url": "/assets/pdf/sample1.pdf"
     },
     {
         "id": 2,
         "time": "2024-1-20 12:24:22",
         "status": "processing",
         "expiry": "2024-03-20",
-        "report_url": "/assets/pdf/sample1.pdf"
     },
     {
         "id": 3,
         "time": "2024-09-20 12:24:22",
         "status": "completed",
         "expiry": "2024-03-20",
-        "report_url": "/assets/pdf/sample1.pdf"
     },
     # 其他数据...
 ]
