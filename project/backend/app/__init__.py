@@ -8,7 +8,8 @@
 from flask import Flask
 from .config import config_dict
 from .extensions import cors
-from .routes import api_bp, static_bp
+from .routes import user_bp, static_bp, auth_bp, frames_bp, upload_bp, history_bp
+
 
 def create_app(config_name='development'):
     # 初始化应用
@@ -23,7 +24,12 @@ def create_app(config_name='development'):
         CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}})
 
     # 注册蓝图
-    app.register_blueprint(api_bp, url_prefix='/api')
+    # app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(user_bp, url_prefix='/api')
+    app.register_blueprint(auth_bp, url_prefix='/api')
+    app.register_blueprint(frames_bp, url_prefix='/api')
+    app.register_blueprint(upload_bp, url_prefix='/api')
+    app.register_blueprint(history_bp, url_prefix='/api')
     app.register_blueprint(static_bp)
 
     return app
