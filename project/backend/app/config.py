@@ -6,6 +6,10 @@ BASE_DIR = Path(__file__).parent.parent
 
 class BaseConfig:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-key')
+
+    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://root:20221625@localhost/fwwb?charset=utf8mb4'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
     STATIC_FOLDER = str(BASE_DIR / 'app/static')
 
     FRAME_FOLDER = str(BASE_DIR / 'app/data/frame')  # 测试帧路径
@@ -28,3 +32,4 @@ config_dict = {
     'development': DevelopmentConfig,
     'production': ProductionConfig
 }
+

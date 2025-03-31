@@ -3,6 +3,7 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from flask import jsonify, request, Blueprint
 from ..config import BaseConfig
+from ..utils.models import User
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -27,10 +28,12 @@ def login():
         if 'password' not in data:
             return jsonify({'success': False, 'message': '缺少密码参数'}), 400
 
-        # 正式环境需要替换为数据库查询
-        if phone == "13812345678" and data['password'] == "password123":
+
+        user = User.query.filter_by(phone=phone).first()
+        if user and user.check_password(data['password']):
             # 生成JWT（有效2小时）
             token = jwt.encode({
+                'user_id': user.user_id,
                 'phone': phone,
                 'exp': datetime.now(timezone.utc) + timedelta(hours=2)
             }, BaseConfig.SECRET_KEY, algorithm="HS256")
@@ -42,6 +45,9 @@ def login():
             }), 200
         else:
             return jsonify({'success': False, 'message': '手机号或密码错误'}), 401
+
+
+
 
     # 验证码登录逻辑
     elif login_type == 'sms':

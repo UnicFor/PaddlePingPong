@@ -7,7 +7,7 @@
 
 from flask import Flask
 from .config import config_dict
-from .extensions import cors
+from .extensions import cors, db
 from .routes import user_bp, static_bp, auth_bp, frames_bp, upload_bp, history_bp
 
 
@@ -18,10 +18,19 @@ def create_app(config_name='development'):
     # 加载配置
     app.config.from_object(config_dict[config_name])
 
+    db.init_app(app)
+    from .utils.models import User
+
     # 配置跨域（仅开发模式）
+    cors.init_app(app)
     if config_name == 'development':
-        from flask_cors import CORS
-        CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}})
+        # 使用配置参数方式
+        app.config.update({
+            'CORS_RESOURCES': {
+                r"/api/*": {"origins": "http://localhost:3000"}
+            },
+            'CORS_SUPPORTS_CREDENTIALS': True
+        })
 
     # 注册蓝图
     # app.register_blueprint(api_bp, url_prefix='/api')
