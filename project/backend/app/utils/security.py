@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from flask import jsonify, g, request
 from ..config import BaseConfig
 from ..utils.models import User  # 导入用户模型
-from ..extensions import db  # 导入数据库实例
+from ..extensions import executor  # 导入数据库实例
 
 
 def jwt_required(f):
@@ -22,7 +22,6 @@ def jwt_required(f):
         auth_header = request.headers.get('Authorization')
         print(f"\n===== 开始验证请求 =====")
         print(f"请求路径: {request.path}")
-        print(f"请求头: {auth_header}")
 
         # 验证头格式
         if not auth_header or not auth_header.startswith('Bearer '):
@@ -76,3 +75,9 @@ def generate_token(user):
     )
 
     return token
+
+
+def async_task(f):
+    def wrapper(*args, **kwargs):
+        executor.submit(f, *args, **kwargs)
+    return wrapper

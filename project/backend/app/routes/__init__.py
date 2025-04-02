@@ -9,4 +9,10 @@ from .user import user_bp
 from .upload import upload_bp
 from .history import history_bp
 
-__all__ = ['static_bp', 'auth_bp', 'frames_bp', 'user_bp', 'upload_bp', 'history_bp']
+__all__ = ['static_bp',
+           'auth_bp',
+           'frames_bp',
+           'user_bp',
+           'upload_bp',
+           'history_bp',
+           ]

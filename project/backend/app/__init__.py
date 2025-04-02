@@ -7,7 +7,7 @@
 
 from flask import Flask
 from .config import config_dict
-from .extensions import cors, db
+from .extensions import cors, db, executor
 from .routes import user_bp, static_bp, auth_bp, frames_bp, upload_bp, history_bp
 
 
@@ -17,6 +17,7 @@ def create_app(config_name='development'):
 
     # 加载配置
     app.config.from_object(config_dict[config_name])
+    executor.init_app(app)
 
     db.init_app(app)
     from .utils.models import User

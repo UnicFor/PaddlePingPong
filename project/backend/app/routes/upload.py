@@ -1,14 +1,22 @@
 import os
-from datetime import datetime
-from werkzeug.utils import secure_filename
-from flask import jsonify, request, Blueprint
+from datetime import datetime, timezone, timedelta
+from flask import jsonify, request, Blueprint, current_app
 from jwt import decode, ExpiredSignatureError, InvalidTokenError
+from ..extensions import db
+from ..utils.models import User, UserVideo, History, VideoStatus
 from ..config import BaseConfig
 from ..utils.security import jwt_required
 
-from .history import HISTORY_DATA  # 导入共享历史数据
+from ..utils.task import process_video_async
 
 upload_bp = Blueprint('upload', __name__)
+
+# 状态常量
+VIDEO_STATUS_UPLOADED = 1
+HISTORY_STATUS_UPLOADED = "processing"
+
+
+
 
 @upload_bp.route('/upload', methods=['POST'])
 @jwt_required
@@ -22,40 +30,84 @@ def upload_video():
         if file.filename == '':
             return jsonify({"success": False, "message": "无效文件名"}), 400
 
-        # 从JWT获取用户信息（根据现有登录接口结构）
+        # 解析 JWT
         auth_header = request.headers.get('Authorization')
         token = auth_header.split(' ')[1]
         payload = decode(token, BaseConfig.SECRET_KEY, algorithms=["HS256"])
-        user_phone = payload['phone']  # 假设使用手机号作为用户标识
+        user_phone = payload['phone']
 
-        # 创建用户专属目录（使用手机号哈希作为目录名）
-        user_folder = os.path.join(BaseConfig.UPLOAD_FOLDER, f"user_{hash(user_phone)}")
+        # 查询用户信息
+        user = User.query.filter_by(phone=user_phone).first()
+        if not user:
+            return jsonify({"success": False, "message": "用户不存在"}), 404
+
+        # 生成唯一视频ID（时间戳）
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")[:-3]
+        video_id = f"{timestamp}"
+
+        # 创建用户专属目录
+        user_folder = os.path.join(BaseConfig.UPLOAD_FOLDER, f"user_{user.user_id}")
         os.makedirs(user_folder, exist_ok=True)
 
-        # 生成安全文件名
-        filename = secure_filename(file.filename)
-        unique_name = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
-        save_path = os.path.join(user_folder, unique_name)
+        # 构建保存路径
+        save_path = os.path.join(user_folder, f"{video_id}{os.path.splitext(file.filename)[1]}")
 
-        # 保存文件
+        # 保存文件到文件系统
         file.save(save_path)
 
-        # 更新历史记录（使用现有HISTORY_DATA结构）
-        new_history = {
-            "id": len(HISTORY_DATA) + 1,
-            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "status": "completed",
-            "file_path": save_path,
-            "filename": filename
-        }
-        HISTORY_DATA.append(new_history)
+        # 数据库事务操作
+        try:
+            # 创建视频记录
+            new_video = UserVideo(
+                video_id=video_id,
+                user_id=user.user_id,
+                video_path=save_path
+            )
+            db.session.add(new_video)
+
+            # 创建视频状态记录
+            video_status = VideoStatus(
+                video_id=video_id,
+                status=VIDEO_STATUS_UPLOADED
+            )
+            db.session.add(video_status)
+
+            db.session.flush()
+
+            # 创建历史记录
+            new_history = History(
+                user_id=user.user_id,
+                video_id=video_id,
+                create_time=datetime.now(),
+                status=HISTORY_STATUS_UPLOADED,
+                expiry=datetime.now(timezone.utc) + timedelta(days=7)
+            )
+            db.session.add(new_history)
+            db.session.commit()
+
+            process_video_async(
+                input_path=save_path,
+                filename=os.path.basename(save_path),
+                original_video_id=video_id,
+                user_id=user.user_id
+            )
+
+        # 异步任务处理
+        except Exception as e:
+            db.session.rollback()
+            # 回滚文件操作
+            if os.path.exists(save_path):
+                os.remove(save_path)
+            current_app.logger.error(f"数据库操作失败: {str(e)}")
+            raise e
 
         return jsonify({
             "success": True,
             "message": "上传成功",
             "data": {
-                "path": save_path,
-                "preview_url": f"/uploads/{os.path.basename(user_folder)}/{unique_name}"
+                "video_id": video_id,
+                "history_id": new_history.history_id,
+                "status_url": f"/api/status/{video_id}"
             }
         }), 200
 
@@ -64,9 +116,9 @@ def upload_video():
     except InvalidTokenError:
         return jsonify({"success": False, "message": "无效令牌"}), 401
     except Exception as e:
-        print(f"上传失败: {str(e)}")
+        current_app.logger.error(f"上传失败: {str(e)}")
         return jsonify({
             "success": False,
-            "message": "文件保存失败",
+            "message": "文件处理失败",
             "error": str(e)
         }), 500

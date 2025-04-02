@@ -12,8 +12,12 @@ class BaseConfig:
 
     STATIC_FOLDER = str(BASE_DIR / 'app/static')
 
-    FRAME_FOLDER = str(BASE_DIR / 'app/data/frame')  # 测试帧路径
-    UPLOAD_FOLDER = os.path.abspath('./data/video')  # 测试视频路径
+    FRAMES_FOLDER = str(BASE_DIR / 'app/utils/frames')  # 处理帧路径
+    PROCESSED_FOLDER = str(BASE_DIR / 'app/utils/video/output')  # 处理视频路径
+    POSE_FOLDER = str(BASE_DIR / 'app/utils/video/output_pose')  # 骨骼路径
+    UPLOAD_FOLDER = str(BASE_DIR / 'app/utils/video/input')  # 上传视频路径
+
+    ALLOWED_EXTENSIONS = {'mp4', 'mov', 'avi'}  # 允许的视频格式
     MAX_CONTENT_LENGTH = 1024 * 1024 * 1024  # 1GB限制
 
     STATIC_URL_PATH = ''
