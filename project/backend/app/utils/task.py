@@ -3,7 +3,6 @@ import subprocess
 from pathlib import Path
 from sqlalchemy.exc import SQLAlchemyError
 from ..utils.models import db, UserVideoProcess, VideoFramesProcess, VideoFramesPose, VideoStatus, History
-
 from .security import async_task
 from ..config import BaseConfig
 
@@ -14,25 +13,29 @@ def process_video_async(input_path, filename, original_video_id, user_id):
         # ================== 路径配置 ==================
         # 配置中心化的路径常量, 创建用户专属目录结构
 
-        # 处理后的视频目录
+        # 处理后的视频目录（保持原物理路径）
         processed_user_dir = Path(BaseConfig.PROCESSED_FOLDER) / f"user_{user_id}"
         processed_user_dir.mkdir(parents=True, exist_ok=True)
-        output_path = str(processed_user_dir / filename)
+        output_path = str(processed_user_dir / filename)  # 实际存储路径不变
 
-        # 骨骼视频目录
+        # 相对路径变量（用于数据库存储）
+        processed_relative = f"user_{user_id}/{filename}"  # 格式：user_3/video.mp4
+
+        # 骨骼视频目录（保持原物理路径）
         pose_user_dir = Path(BaseConfig.POSE_FOLDER) / f"user_{user_id}"
         pose_user_dir.mkdir(parents=True, exist_ok=True)
-        pose_video_path = str(pose_user_dir / filename)
+        pose_video_path = str(pose_user_dir / filename)  # 实际路径不变
 
-        # 帧存储目录
+        # 帧存储目录（保持原物理路径）
         frames_user_dir = Path(BaseConfig.FRAMES_FOLDER) / f"user_{user_id}"
         frames_user_dir.mkdir(parents=True, exist_ok=True)
 
-        # 原始视频帧目录
+        # 原始视频帧目录（保持原物理路径）
         frame_output_dir = frames_user_dir / filename.split('.')[0]
         frame_output_dir.mkdir(parents=True, exist_ok=True)
 
-        # 骨骼视频帧目录
+
+        # 骨骼视频帧目录（保持原物理路径）
         pose_frame_dir = frames_user_dir / f"{filename.split('.')[0]}_pose"
         pose_frame_dir.mkdir(parents=True, exist_ok=True)
 
@@ -55,7 +58,6 @@ def process_video_async(input_path, filename, original_video_id, user_id):
         print(f"✅ 视频处理完成: {output_path}")
 
         # ================== 数据库写入阶段 ==================
-        # 使用ORM代替原始SQL
         processed_video_id = f"{original_video_id.split('_')[-1]}"
         try:
             print(f"📝 写入处理视频记录: {processed_video_id}")
@@ -63,7 +65,7 @@ def process_video_async(input_path, filename, original_video_id, user_id):
             processed_video = UserVideoProcess(
                 video_id=processed_video_id,
                 user_id=user_id,
-                video_path_process=output_path
+                video_path_process=processed_relative
             )
             db.session.add(processed_video)
             db.session.commit()
@@ -89,6 +91,7 @@ def process_video_async(input_path, filename, original_video_id, user_id):
         frame_files = sorted(os.listdir(frame_output_dir))
         print(f"✅ 帧提取完成，共 {len(frame_files)} 帧")
 
+        # ================== 数据库写入阶段 ==================
         # 批量写入帧记录（ORM优化）
         try:
             print(f"📋 开始写入 {len(frame_files)} 条帧记录...")
@@ -97,7 +100,7 @@ def process_video_async(input_path, filename, original_video_id, user_id):
                     frame_id=f"{original_video_id}_{idx}",
                     video_id=original_video_id,
                     frame_index=idx,
-                    frame_path_process=str(frame_output_dir / frame_file)
+                    frame_path_process=f"user_{user_id}/{filename.split('.')[0]}/{frame_file}"
                 )
                 for idx, frame_file in enumerate(frame_files, 1)
             ]
@@ -117,7 +120,7 @@ def process_video_async(input_path, filename, original_video_id, user_id):
             'project/backend/app/utils/mmpose/utils/config.py',
             'project/backend/app/utils/mmpose/utils/model2.pth',
             '--input', output_path,
-            '--output-root', pose_video_path,
+            '--output-root', str(pose_user_dir),
             '--device', 'cuda:0',
             '--save-predictions'
         ]
@@ -126,36 +129,40 @@ def process_video_async(input_path, filename, original_video_id, user_id):
 
         if pose_result.returncode != 0:
             print(f"❌ 骨骼检测失败: {pose_result.stderr}")
+        elif not os.path.exists(pose_video_path):
+            print(f"❌ 骨骼视频不存在: {pose_video_path}")
         else:
             # 骨骼帧处理（ORM批量操作）
             pose_frame_script = [
-                'python', 'mmpose/video2frame.py',
+                'python', 'project/backend/app/utils/mmpose/video2frame.py',
                 '--video_path', pose_video_path,
-                '--output_dir', str(pose_frame_dir),
+                '--output_dir', pose_frame_dir,
                 '--frame_interval', '1'
             ]
             print(f"🖼️ 开始提取骨骼帧到目录: {pose_frame_dir}")
             pose_frame_result = subprocess.run(pose_frame_script, capture_output=True, text=True, encoding='utf-8',
                                                errors='ignore')
 
+            print(f"子进程返回码: {pose_frame_result.returncode}")
+            print(f"标准错误输出:{pose_frame_result.stderr}")
+            print(f"标准输出:{pose_frame_result.stdout}")
+
+            # ================== 数据库写入阶段 ==================
             if pose_frame_result.returncode == 0:
                 pose_frame_files = sorted(os.listdir(pose_frame_dir))
-                try:
-                    print(f"📋 开始写入 {len(pose_frame_files)} 条骨骼帧记录...")
-                    pose_frames = [
-                        VideoFramesPose(
-                            frame_id=f"{original_video_id}_{idx}",
-                            video_id=original_video_id,
-                            frame_index=idx,
-                            frame_path=str(pose_frame_dir / frame_file)
-                        )
-                        for idx, frame_file in enumerate(pose_frame_files, 1)
-                    ]
-                    db.session.bulk_save_objects(pose_frames)
-                    db.session.commit()
-                except SQLAlchemyError as e:
-                    db.session.rollback()
-                    print(f"❌ 骨骼帧记录错误: {e}")
+
+                print(f"📋 开始写入 {len(pose_frame_files)} 条骨骼帧记录...")
+                pose_frames = [
+                    VideoFramesPose(
+                        frame_id=f"{original_video_id}_{idx}",
+                        video_id=original_video_id,
+                        frame_index=idx,
+                        frame_path=f"user_{user_id}/{filename.split('.')[0]}_pose/{frame_file}"
+                    )
+                    for idx, frame_file in enumerate(pose_frame_files, 1)
+                ]
+                db.session.bulk_save_objects(pose_frames)
+                db.session.commit()
 
         # ================== 状态更新阶段 ==================
         try:

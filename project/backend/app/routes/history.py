@@ -1,4 +1,3 @@
-import os
 import shutil
 from pathlib import Path
 from flask import jsonify, request, Blueprint, g, current_app
@@ -101,3 +100,49 @@ def delete_history(history_id):
         db.session.rollback()
         current_app.logger.error(f"删除失败[history_id={history_id}]: {str(e)}", exc_info=True)
         return jsonify({"success": False, "message": "服务器处理删除请求时出错"}), 500
+
+
+# 在history路由蓝图中添加
+
+@history_bp.route('/history/<int:history_id>', methods=['GET'])
+@jwt_required
+def get_history_detail(history_id):
+    current_user = g.current_user
+
+    record = History.query.filter_by(
+        history_id=history_id,
+        user_id=current_user.user_id
+    ).first()
+
+    if not record:
+        return jsonify({"success": False, "message": "记录不存在"}), 404
+
+    # 获取原始视频信息
+    original_video = UserVideo.query.filter_by(
+        video_id=record.video_id
+    ).first()
+
+    # 获取处理后的视频信息
+    processed_video = UserVideoProcess.query.filter_by(
+        video_id=record.video_id
+    ).first()
+
+    # 生成视频访问URL
+    def generate_video_url(path):
+        return f"/api/media/{current_user.user_id}/{Path(path).name}"
+
+    return jsonify({
+        "success": True,
+        "data": {
+            "original_video": generate_video_url(original_video.video_path),
+            "processed_video": generate_video_url(processed_video.video_path_process),
+            "frames": [
+                {
+                    "index": frame.frame_index,
+                    "pose_frame": f"/api/media/{current_user.user_id}/{Path(frame.frame_path).name}",
+                    "processed_frame": f"/api/media/{current_user.user_id}/{Path(frame.frame_path_process).name}"
+                }
+                for frame in original_video.pose_frames
+            ]
+        }
+    })

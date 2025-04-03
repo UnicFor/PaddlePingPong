@@ -56,6 +56,7 @@ class History(db.Model):
         return {
             "id": self.history_id,
             "user_id": self.user_id,
+            'video_id': self.video_id,
             "time": self.create_time.strftime("%Y-%m-%d %H:%M:%S"),
             "status": self.status,
             "expiry": self.expiry.strftime("%Y-%m-%d") if self.expiry else None

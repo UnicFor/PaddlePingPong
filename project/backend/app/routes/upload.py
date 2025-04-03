@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timezone, timedelta
-from flask import jsonify, request, Blueprint, current_app
+from flask import jsonify, request, Blueprint, current_app, send_from_directory
 from jwt import decode, ExpiredSignatureError, InvalidTokenError
 from ..extensions import db
 from ..utils.models import User, UserVideo, History, VideoStatus
@@ -50,7 +50,8 @@ def upload_video():
         os.makedirs(user_folder, exist_ok=True)
 
         # 构建保存路径
-        save_path = os.path.join(user_folder, f"{video_id}{os.path.splitext(file.filename)[1]}")
+        relative_path = os.path.join(f"user_{user.user_id}", f"{video_id}{os.path.splitext(file.filename)[1]}").replace("\\", "/")
+        save_path = os.path.join(BaseConfig.UPLOAD_FOLDER, relative_path)
 
         # 保存文件到文件系统
         file.save(save_path)
@@ -61,7 +62,7 @@ def upload_video():
             new_video = UserVideo(
                 video_id=video_id,
                 user_id=user.user_id,
-                video_path=save_path
+                video_path=relative_path
             )
             db.session.add(new_video)
 

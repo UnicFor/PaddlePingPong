@@ -12,6 +12,8 @@ class BaseConfig:
 
     STATIC_FOLDER = str(BASE_DIR / 'app/static')
 
+    UTILS_FOLDER = str(BASE_DIR / 'app/utils/video')
+
     FRAMES_FOLDER = str(BASE_DIR / 'app/utils/frames')  # 处理帧路径
     PROCESSED_FOLDER = str(BASE_DIR / 'app/utils/video/output')  # 处理视频路径
     POSE_FOLDER = str(BASE_DIR / 'app/utils/video/output_pose')  # 骨骼路径

@@ -8,7 +8,7 @@
 from flask import Flask
 from .config import config_dict
 from .extensions import cors, db, executor
-from .routes import user_bp, static_bp, auth_bp, frames_bp, upload_bp, history_bp
+from .routes import user_bp, static_bp, auth_bp, frames_bp, video_bp, upload_bp, history_bp
 
 
 def create_app(config_name='development'):
@@ -38,6 +38,7 @@ def create_app(config_name='development'):
     app.register_blueprint(user_bp, url_prefix='/api')
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(frames_bp, url_prefix='/api')
+    app.register_blueprint(video_bp, url_prefix='/api')
     app.register_blueprint(upload_bp, url_prefix='/api')
     app.register_blueprint(history_bp, url_prefix='/api')
     app.register_blueprint(static_bp)
