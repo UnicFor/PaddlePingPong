@@ -62,7 +62,10 @@ def delete_history(history_id):
             'pose_video': Path(BaseConfig.POSE_FOLDER) / user_dir / filename,
             'pose_json': Path(BaseConfig.POSE_FOLDER) / user_dir / f"results_{stem_name}.json",
             'frames_dir': Path(BaseConfig.FRAMES_FOLDER) / user_dir / stem_name,
-            'pose_frames_dir': Path(BaseConfig.FRAMES_FOLDER) / user_dir / f"{stem_name}_pose"
+            'pose_frames_dir': Path(BaseConfig.FRAMES_FOLDER) / user_dir / f"{stem_name}_pose",
+            'other': Path(BaseConfig.UTILS_FOLDER) / f"other" / user_dir / filename,
+            'result': Path(BaseConfig.RESULT_FOLDER) / user_dir / filename
+
         }
 
         # 事务操作

@@ -8,6 +8,46 @@ import argparse
 from itertools import groupby
 from scipy.spatial import distance
 
+import os
+import csv
+from pathlib import Path
+
+
+def save_track_to_csv(ball_track, dists, video_path, fps):
+    """将球的轨迹和速度保存为CSV文件
+    :params
+        ball_track: 球的坐标列表
+        dists: 两点之间的欧氏距离列表
+        video_path: 输入视频路径
+        fps: 帧率
+    """
+    # 创建输出目录
+    output_dir = Path(r"project\backend\app\utils\video\other").resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # 从视频路径中获取文件名
+    video_name = Path(video_path).stem
+    csv_path = output_dir / f"{video_name}_ball.csv"
+    print(f"CSV保存路径：{output_dir}")  # 添加路径打印确认
+
+    with open(csv_path, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['Frame', 'X', 'Y', 'Speed'])
+
+        for i in range(len(ball_track)):
+            x, y = ball_track[i]
+            # 如果当前帧没有有效坐标，速度也应该为NaN
+            if x is None or y is None:
+                writer.writerow([i, "NaN", "NaN", "NaN"])
+            else:
+                dist = dists[i] if i < len(dists) else -1
+                # 计算速度（像素/秒）
+                speed = dist * fps if dist != -1 else -1
+
+                writer.writerow([i, x, y,
+                                 speed if speed != -1 else "NaN"])
+
+    print(f"轨迹数据已保存至: {csv_path}")
 
 def read_video(path_video):
     """ Read video file
@@ -264,7 +304,10 @@ if __name__ == '__main__':
     model.eval()
 
     frames, fps = read_video(args.video_path)
-    ball_track, dists, processed_frames = infer_model(frames, model, fps)  # 传递fps参数
+    ball_track, dists, processed_frames = infer_model(frames, model, fps)
+    # 保存轨迹和速度数据到CSV文件
+    save_track_to_csv(ball_track, dists, args.video_path, fps)
+
     ball_track = remove_outliers(ball_track, dists)
 
     if args.extrapolation:
@@ -273,5 +316,6 @@ if __name__ == '__main__':
             ball_subtrack = ball_track[r[0]:r[1]]
             ball_subtrack = interpolation(ball_subtrack)
             ball_track[r[0]:r[1]] = ball_subtrack
+
 
     write_track(processed_frames, ball_track, args.video_out_path, fps)

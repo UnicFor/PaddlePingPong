@@ -29,7 +29,7 @@ def get_video_urls(video_id):
         # 动态构建路径（确保使用正斜杠）
         original_filename = f"input/{original.video_path}"
         processed_filename = (
-            f"output_pose/{processed.video_path_process}"
+            f"result/{processed.video_path_process}"
             if processed else None
         )
 

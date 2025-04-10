@@ -1,6 +1,6 @@
 import base64
 import os
-from flask import Blueprint, jsonify, g, json
+from flask import Blueprint, jsonify, g, json, Response
 from json.decoder import JSONDecodeError
 from ..utils.models import User, UserVideo
 from ..utils.security import jwt_required
@@ -178,3 +178,41 @@ def get_pose_data(video_id):
         return jsonify(success=False, message="骨骼数据格式错误"), 500
     except Exception as e:
         return jsonify(success=False, message="服务器内部错误"), 500
+
+
+@frames_bp.route('/ball-data/<string:video_id>')
+@jwt_required
+def get_ball_data(video_id):
+    try:
+        current_user = g.current_user
+        user = User.query.get(current_user.user_id)
+        if not user:
+            return jsonify(success=False, message="用户不存在"), 404
+
+        video = UserVideo.query.filter_by(
+            video_id=video_id,
+            user_id=user.user_id
+        ).first()
+        if not video:
+            return jsonify(success=False, message="无权访问"), 403
+
+        csv_path = os.path.join(
+            BaseConfig.UTILS_FOLDER,
+            "other",
+            f"{video_id}_ball.csv"
+        )
+
+        if not os.path.exists(csv_path):
+            return jsonify(success=False, message="未找到轨迹数据"), 404
+
+        with open(csv_path, 'r') as f:
+            csv_data = f.read()
+
+        return Response(
+            csv_data,
+            mimetype="text/csv",
+            headers={"Content-disposition": f"attachment; filename={video_id}_ball.csv"}
+        )
+
+    except Exception as e:
+        return jsonify(success=False, message=str(e)), 500

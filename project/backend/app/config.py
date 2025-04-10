@@ -15,9 +15,10 @@ class BaseConfig:
     UTILS_FOLDER = str(BASE_DIR / 'app/utils/video')
 
     FRAMES_FOLDER = str(BASE_DIR / 'app/utils/frames')  # 处理帧路径
-    PROCESSED_FOLDER = str(BASE_DIR / 'app/utils/video/output')  # 处理视频路径
+    PROCESSED_FOLDER = str(BASE_DIR / 'app/utils/video/output')  # 初步处理视频路径
     POSE_FOLDER = str(BASE_DIR / 'app/utils/video/output_pose')  # 骨骼路径
     UPLOAD_FOLDER = str(BASE_DIR / 'app/utils/video/input')  # 上传视频路径
+    RESULT_FOLDER = str(BASE_DIR / 'app/utils/video/result')  # 最终处理视频路径
 
     ALLOWED_EXTENSIONS = {'mp4', 'mov', 'avi'}  # 允许的视频格式
     MAX_CONTENT_LENGTH = 1024 * 1024 * 1024  # 1GB限制

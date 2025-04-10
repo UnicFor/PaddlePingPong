@@ -24,7 +24,12 @@ def process_video_async(input_path, filename, original_video_id, user_id):
         # 骨骼视频目录（保持原物理路径）
         pose_user_dir = Path(BaseConfig.POSE_FOLDER) / f"user_{user_id}"
         pose_user_dir.mkdir(parents=True, exist_ok=True)
-        pose_video_path = str(pose_user_dir / filename)  # 实际路径不变
+        pose_video_path = str(pose_user_dir / filename)
+
+        # 最终视频目录（保持原物理路径）
+        result_user_dir = Path(BaseConfig.RESULT_FOLDER) / f"user_{user_id}"
+        result_user_dir.mkdir(parents=True, exist_ok=True)
+        result_video_path = str(result_user_dir / filename)
 
         # 帧存储目录（保持原物理路径）
         frames_user_dir = Path(BaseConfig.FRAMES_FOLDER) / f"user_{user_id}"
@@ -33,7 +38,6 @@ def process_video_async(input_path, filename, original_video_id, user_id):
         # 原始视频帧目录（保持原物理路径）
         frame_output_dir = frames_user_dir / filename.split('.')[0]
         frame_output_dir.mkdir(parents=True, exist_ok=True)
-
 
         # 骨骼视频帧目录（保持原物理路径）
         pose_frame_dir = frames_user_dir / f"{filename.split('.')[0]}_pose"
@@ -127,6 +131,28 @@ def process_video_async(input_path, filename, original_video_id, user_id):
         print(f"⚙️ 正在运行骨骼检测脚本: {' '.join(pose_cmd)}")
         pose_result = subprocess.run(pose_cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore')
 
+        # ================== 动作识别阶段 ==================
+        print(f"🎬 开始动作识别: {filename}")
+
+        action_cmd = [
+            'python', 'project/backend/app/utils/mmaction/actionpredict.py',
+            '--config_path', 'project/backend/app/utils/mmaction/utils/configs.py',
+            '--checkpoint_path', 'project/backend/app/utils/mmaction/utils/model.pth',
+            '--label_map', 'project/backend/app/utils/mmaction/utils/label_map.txt',
+            '--video_path', pose_video_path,
+            '--output_dir', str(result_user_dir),
+            '--filename', filename
+        ]
+        print(f"⚙️ 正在运行动作识别脚本: {' '.join(action_cmd)}")
+        action_result = subprocess.Popen(action_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = action_result.communicate()
+
+        if action_result.returncode != 0:
+            print(f"❌ 动作识别失败: {action_result.stderr}")
+        else:
+            print(f"✅ 动作识别完成")
+
+        # ================== 骨骼帧处理阶段 ==================
         if pose_result.returncode != 0:
             print(f"❌ 骨骼检测失败: {pose_result.stderr}")
         elif not os.path.exists(pose_video_path):
@@ -172,7 +198,7 @@ def process_video_async(input_path, filename, original_video_id, user_id):
 
             history_entry = History.query.filter_by(video_id=original_video_id).first()
             if history_entry:
-                history_entry.status = "completed"  # 使用您在模型中定义的状态值
+                history_entry.status = "completed"
                 db.session.commit()
                 print(f"✅ 状态更新为已完成")
 
