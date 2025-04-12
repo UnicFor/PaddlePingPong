@@ -55,8 +55,11 @@ def login():
             return jsonify({'success': False, 'message': '缺少验证码参数'}), 400
 
         # 模拟验证码验证（正式环境需查询缓存）
-        if data['sms_code'] == "123456":
+        user = User.query.filter_by(phone=phone).first()
+        if user and data['sms_code'] == "246544":
+
             token = jwt.encode({
+                'user_id': user.user_id,
                 'phone': phone,
                 'exp': datetime.now(timezone.utc) + timedelta(hours=2)
             }, BaseConfig.SECRET_KEY, algorithm="HS256")
@@ -82,5 +85,5 @@ def send_sms():
         return jsonify({'success': False, 'message': '手机号格式错误'}), 400
 
     # 模拟发送验证码（正式环境需接入短信服务商API）
-    print(f"模拟发送验证码至 {phone}: 123456")  # 控制台输出模拟验证码
+    print(f"模拟发送验证码至 {phone}: 246544")  # 控制台输出模拟验证码
     return jsonify({'success': True, 'message': '验证码已发送'})
