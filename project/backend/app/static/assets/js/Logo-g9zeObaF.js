@@ -1,0 +1,1 @@
+import{c as r,a as o,F as c,o as l}from"./index-DBcA3JiZ.js";const _=(e,t)=>{const n=e.__vccOpts||e;for(const[s,a]of t)n[s]=a;return n},d={};function p(e,t){return l(),r(c,null,[t[0]||(t[0]=o("span",{class:"elegant-text"},"Paddle",-1)),t[1]||(t[1]=o("span",null," PingPong",-1))],64)}const g=_(d,[["render",p],["__scopeId","data-v-dfb21cb2"]]);export{_,g as l};
