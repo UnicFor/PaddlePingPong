@@ -221,68 +221,71 @@ def visualize_results(video_path,
     import pandas as pd
     import numpy as np
     from PIL import Image, ImageDraw, ImageFont
+    try:
+        # 加载预测结果（带topN信息）
+        df = pd.read_csv(result_csv, encoding='utf-8')
+        valid_df = df[df['predicted_class'] != 'ERROR']
+        valid_df['start_frame'] = valid_df['start_frame'].astype(int)
+        valid_df['end_frame'] = valid_df['end_frame'].astype(int)
 
-    # 加载预测结果（带topN信息）
-    df = pd.read_csv(result_csv, encoding='utf-8')
-    valid_df = df[df['predicted_class'] != 'ERROR']
-    valid_df['start_frame'] = valid_df['start_frame'].astype(int)
-    valid_df['end_frame'] = valid_df['end_frame'].astype(int)
+        # 初始化视频读取
+        cap = cv2.VideoCapture(video_path)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    # 初始化视频读取
-    cap = cv2.VideoCapture(video_path)
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        # 加载中文字体（请确保此路径存在或替换为系统中的实际字体路径）
+        fontpath = "C:/Windows/Fonts/simhei.ttf"  # 微软黑体
+        font_size = 24
 
-    # 加载中文字体（请确保此路径存在或替换为系统中的实际字体路径）
-    fontpath = "C:/Windows/Fonts/simhei.ttf"  # 微软黑体
-    font_size = 24
+        # 初始化视频写入器
+        fourcc = cv2.VideoWriter_fourcc(*'avc1')
+        out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
 
-    # 初始化视频写入器
-    fourcc = cv2.VideoWriter_fourcc(*'avc1')
-    out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
+            current_frame = int(cap.get(cv2.CAP_PROP_POS_FRAMES)) - 1
 
-        current_frame = int(cap.get(cv2.CAP_PROP_POS_FRAMES)) - 1
+            # 查找匹配的时间窗口
+            matches = valid_df[
+                (valid_df['start_frame'] <= current_frame) &
+                (valid_df['end_frame'] >= current_frame)
+                ]
 
-        # 查找匹配的时间窗口
-        matches = valid_df[
-            (valid_df['start_frame'] <= current_frame) &
-            (valid_df['end_frame'] >= current_frame)
-            ]
+            if not matches.empty:
+                # 转换为PIL图像以支持中文文字
+                pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                draw = ImageDraw.Draw(pil_img)
+                font = ImageFont.truetype(fontpath, font_size)
 
-        if not matches.empty:
-            # 转换为PIL图像以支持中文文字
-            pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-            draw = ImageDraw.Draw(pil_img)
-            font = ImageFont.truetype(fontpath, font_size)
+                # 绘制前i个预测结果
+                y = 120
+                for _, row in matches.iterrows():
+                    # 遍历前i个预测类别
+                    for j in range(top_i):
+                        class_name = row[f"top{j + 1}_class"]
+                        confidence = row[f"top{j + 1}_score"]
+                        text = f"Top{j + 1}: {class_name} ({confidence:.2f})"
+                        draw.text((20, y), text, font=font, fill=(0, 255, 0))
+                        y += 35  # 调整行间距
 
-            # 绘制前i个预测结果
-            y = 120
-            for _, row in matches.iterrows():
-                # 遍历前i个预测类别
-                for j in range(top_i):
-                    class_name = row[f"top{j + 1}_class"]
-                    confidence = row[f"top{j + 1}_score"]
-                    text = f"Top{j + 1}: {class_name} ({confidence:.2f})"
-                    draw.text((20, y), text, font=font, fill=(0, 255, 0))
-                    y += 35  # 调整行间距
+                # 将PIL图像转回OpenCV格式
+                frame = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
 
-            # 将PIL图像转回OpenCV格式
-            frame = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+            out.write(frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
-        out.write(frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    cap.release()
-    out.release()
-    cv2.destroyAllWindows()
-    print(f"结果视频已保存至: {output_video_path}")
+        cap.release()
+        out.release()
+        cv2.destroyAllWindows()
+        print(f"结果视频已保存至: {output_video_path}")
+    except Exception as e:
+        print(f"动作识别可视化过程出错: {str(e)}")
+        raise  # 重新抛出异常以便主程序能够处理
 
 # ---------- 执行入口 ----------
 if __name__ == "__main__":
@@ -329,6 +332,9 @@ if __name__ == "__main__":
                   split_dir,
                   prediction_csv)
         visualize_results(input_video,prediction_csv,output_video,3)
+    except Exception as e:
+        print(f"动作识别处理失败: {str(e)}")  # <-- 添加这行以打印实际错误
+
     finally:
         # 清理分割视频文件夹（无论是否出错都会执行）
         if Path(split_dir).exists():

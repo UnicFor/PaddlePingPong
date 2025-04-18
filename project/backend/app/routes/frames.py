@@ -216,3 +216,41 @@ def get_ball_data(video_id):
 
     except Exception as e:
         return jsonify(success=False, message=str(e)), 500
+
+@frames_bp.route('/report/<string:video_id>')
+@jwt_required
+def get_analysis_report(video_id):
+    try:
+        current_user = g.current_user
+        user = User.query.get(current_user.user_id)
+        if not user:
+            return jsonify(success=False, message="用户不存在"), 404
+
+        video = UserVideo.query.filter_by(
+            video_id=video_id,
+            user_id=user.user_id
+        ).first()
+        if not video:
+            return jsonify(success=False, message="无权访问"), 403
+
+        user_dir = f"user_{user.user_id}"
+        report_path = os.path.join(
+            BaseConfig.POSE_FOLDER,
+            user_dir,
+            f"results_{video_id}.md"
+        )
+
+        if not os.path.exists(report_path):
+            return jsonify(success=False, message="未找到分析报告"), 404
+
+        with open(report_path, 'r', encoding='utf-8') as f:
+            report_content = f.read()
+
+        return Response(
+            report_content,
+            mimetype="text/markdown",
+            headers={"Content-disposition": f"inline; filename={video_id}_report.md"}
+        )
+
+    except Exception as e:
+        return jsonify(success=False, message=str(e)), 500

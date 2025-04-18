@@ -9,6 +9,7 @@ from .upload import upload_bp
 from .history import history_bp
 from .video import video_bp
 from .frames import frames_bp
+from .rag import rag_bp
 
 __all__ = ['static_bp',
            'auth_bp',
@@ -16,5 +17,6 @@ __all__ = ['static_bp',
            'upload_bp',
            'history_bp',
            'frames_bp',
-           'video_bp'
+           'video_bp',
+           'rag_bp'
            ]
