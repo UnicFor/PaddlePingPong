@@ -61,6 +61,7 @@ def delete_history(history_id):
             'processed': Path(BaseConfig.PROCESSED_FOLDER) / user_dir / filename,
             'pose_video': Path(BaseConfig.POSE_FOLDER) / user_dir / filename,
             'pose_json': Path(BaseConfig.POSE_FOLDER) / user_dir / f"results_{stem_name}.json",
+            'pose_md': Path(BaseConfig.POSE_FOLDER) / user_dir / f"results_{stem_name}.md",
             'frames_dir': Path(BaseConfig.FRAMES_FOLDER) / user_dir / stem_name,
             'pose_frames_dir': Path(BaseConfig.FRAMES_FOLDER) / user_dir / f"{stem_name}_pose",
             'other': Path(BaseConfig.UTILS_FOLDER) / f"other" / f"{stem_name}_ball.csv",
