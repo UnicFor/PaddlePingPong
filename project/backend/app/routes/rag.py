@@ -224,19 +224,41 @@ def load_dataset_embedding_route():
 
 
 @rag_bp.route("/load_report", methods=["POST"])
+@jwt_required
 def load_report():
-    if _report_paths == []:
-        print(f"_report_paths: {_report_paths}")
-        return jsonify({"status": "error", "error": "No report found"}), 400
-    elif _N == 0:
-        report_path = _report_paths[0]
-    else:
-        report_path = _report_paths[_N - 1]
-    # 使用文本模式打开文件
-    print(f"report_path: {report_path}")
-    with open(report_path, "r", encoding="utf-8") as f:
-        content = f.read()
-    return jsonify({"status": "success", "report": content})
+    req_data = request.get_json()
+    video_id = req_data.get("video_id")
+
+    if not video_id:
+        return jsonify({"status": "error", "message": "缺少 video_id 参数"}), 400
+
+    # 获取当前用户
+    current_user = g.current_user
+    user = User.query.get(current_user.user_id)
+    if not user:
+        return jsonify({"status": "error", "message": "用户不存在"}), 404
+
+    # 验证视频归属
+    video = UserVideo.query.filter_by(
+        video_id=video_id,
+        user_id=user.user_id
+    ).first()
+    if not video:
+        return jsonify({"status": "error", "message": "无权访问该视频"}), 403
+
+    # 构建报告文件路径
+    pose_user_dir = Path(BaseConfig.POSE_FOLDER) / f"user_{user.user_id}"
+    report_path = pose_user_dir / f"results_{video_id}.md"
+
+    if not report_path.exists():
+        return jsonify({"status": "error", "error": "报告文件不存在"}), 404
+
+    try:
+        with open(report_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return jsonify({"status": "success", "report": content})
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 @rag_bp.route("/generate_report", methods=["POST"])
