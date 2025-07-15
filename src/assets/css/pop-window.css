@@ -1,0 +1,110 @@
+/* 弹窗样式 */
+.upload-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: white;
+  padding: 24px;
+  border-radius: 8px;
+  width: 400px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.file-info {
+  margin: 16px 0;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.file-info p {
+  margin: 8px 0;
+  font-size: 0.9em;
+  color: #666;
+}
+
+/* 进度条样式 */
+.progress-bar {
+  height: 24px;
+  background: #eee;
+  border-radius: 12px;
+  margin: 16px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #42b983;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-weight: bold;
+}
+
+.status-success {
+  color: #42b983;
+  padding: 12px;
+  text-align: center;
+}
+
+.status-error {
+  color: #ff4757;
+  padding: 12px;
+  text-align: center;
+}
+
+.modal-actions {
+  margin-top: 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.confirm-btn {
+  background: #42b983;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cancel-btn {
+  background: #f0f0f0;
+  color: #666;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.confirm-btn:hover {
+  background: #3aa876;
+}
+
+.cancel-btn:hover {
+  background: #e0e0e0;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+

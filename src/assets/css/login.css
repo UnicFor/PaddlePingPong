@@ -1,0 +1,227 @@
+.login-container {
+    width: 400px;
+    padding: 40px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+    opacity: 0;
+    animation: fadeInUp 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+    animation-delay: 0.3s;
+}
+
+.login-header{
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.login-tabs {
+    display: flex;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #eee;
+}
+
+.tab {
+    flex: 1;
+    padding: 15px;
+    border: none;
+    background: none;
+    color: #95a5a6;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.tab.active {
+    color: #2c3e50;
+    border-bottom: 3px solid #2c3e50;
+    font-weight: 500;
+}
+
+.form-group {
+    margin-bottom: 25px;
+    margin-right: 30px;
+    animation: fadeIn 0.6s ease forwards;
+}
+
+input {
+    width: 100%;
+    padding: 14px;
+    border: 2px solid #ecf0f1;
+    border-radius: 8px;
+    font-size: 15px;
+    transition:
+        border-color 0.3s ease,
+        transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+input:focus {
+    outline: none;
+    border-color: #2c3e50;
+    transform: translateY(-1px);
+}
+
+.sms-input {
+    display: flex;
+    gap: 10px;
+}
+
+.sms-btn {
+    flex-shrink: 0;
+    padding: 0 20px;
+    background: #2d3436;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition:
+        all 0.3s ease,
+        transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-right: -30px;
+}
+
+.sms-btn:hover {
+    background: #636e72;
+    transform: translateY(-2px);
+}
+
+.sms-btn:active {
+    transform: translateY(1px);
+}
+
+.submit-btn {
+    width: 100%;
+    padding: 15px;
+    background: #2d3436;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition:
+        all 0.3s ease,
+        transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.submit-btn:hover {
+    background: #636e72;
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(44, 62, 80, 0.15);
+}
+
+.submit-btn:active {
+    transform: translateY(0);
+}
+
+.third-login {
+    margin-top: 30px;
+}
+
+.divider {
+    color: #bdc3c7;
+    text-align: center;
+    position: relative;
+    margin: 20px 0;
+}
+
+.divider::before,
+.divider::after {
+    content: "";
+    display: inline-block;
+    width: 15%;
+    height: 1px;
+    background: #ecf0f1;
+    vertical-align: middle;
+    margin: 0 10px;
+}
+
+.wechat-login {
+    width: 100%;
+    padding: 12px;
+    background: #f8f9fa;
+    color: #2c3e50;
+    border: 2px solid #ecf0f1;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    cursor: pointer;
+    transition:
+        all 0.3s ease,
+        transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wechat-login:hover {
+    border-color: #2c3e50;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(44, 62, 80, 0.1);
+}
+
+.wechat-login:active {
+    transform: translateY(0);
+}
+
+.wechat-login img {
+    width: 20px;
+    height: 20px;
+}
+
+.footer-links {
+    margin-top: 25px;
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+}
+
+.footer-links a {
+    color: #95a5a6;
+    text-decoration: none;
+    font-size: 14px;
+    transition:
+        color 0.3s ease,
+        transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.footer-links a:hover {
+    color: #2c3e50;
+    transform: translateY(-1px);
+}
+
+/* 动画关键帧 */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* 表单切换动画 */
+.password-group, .sms-group {
+    animation: formSwitch 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes formSwitch {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

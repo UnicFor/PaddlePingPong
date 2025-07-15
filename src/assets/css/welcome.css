@@ -1,0 +1,134 @@
+/* 主容器设置 */
+.welcome-container {
+  min-height: 80vh;
+  display: grid;
+  justify-content: center;
+  align-items: center;
+  background: #ffffff;
+}
+
+/* 内容容器 */
+.content-wrapper {
+  text-align: center;
+  padding: 2rem;
+  max-width: 800px;
+  width: 90%;
+}
+
+/* 主标题样式 */
+.main-title {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  opacity: 0;
+  animation: fadeInUp 0.8s ease-out forwards;
+  animation-delay: 0.2s;
+}
+
+/* 副标题 */
+.subtitle {
+  font-size: 1.5rem;
+  color: #636e72;
+  margin-bottom: 3rem;
+  opacity: 0;
+  animation: fadeIn 0.8s ease-out forwards;
+  animation-delay: 0.4s;
+}
+
+/* 按钮容器 */
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  opacity: 0;
+  animation: fadeInUp 0.8s ease-out forwards;
+  animation-delay: 0.6s;
+}
+
+/* 基础按钮样式 */
+.btn {
+  position: relative;
+  padding: 1.2rem 2.5rem;
+  border: none;
+  border-radius: 50px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  background: #2d3436;
+  color: white;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.btn:hover::before {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+.btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(45, 52, 54, 0.2);
+}
+
+.btn-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* 注册按钮特殊样式 */
+.register-btn {
+  background: #636e72;
+}
+
+.abstract-section {
+  display: block;
+  width: 100%;
+  float: none;
+}
+
+/* 动画定义 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .content-wrapper {
+    padding: 1rem;
+  }
+
+  .main-title {
+    font-size: 2rem;
+  }
+
+  .btn {
+    padding: 0.8rem 1.5rem;
+  }
+}

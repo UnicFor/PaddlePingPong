@@ -1,0 +1,139 @@
+.analysis-tabs {
+  background: white;
+  border-radius: 10px;
+  min-height: 60vh;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.tab-nav {
+  display: flex;
+  border-bottom: 2px solid #f1f3f5;
+  padding: 0 20px;
+}
+
+.tab-nav button {
+  flex: 1;
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-width: 110px;
+  padding: 16px 20px;
+  border: none;
+  background: none;
+  color: #95a5a6;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color 0.3s ease,
+    background 0.3s ease;
+  position: relative;
+}
+
+.tab-nav button.active {
+  color: #2c3e50;
+}
+
+.tab-nav button.active::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: #2c3e50;
+  border-radius: 2px;
+}
+
+.tab-content {
+  padding: 25px;
+}
+
+.report-section {
+  animation: fadeIn 0.4s ease forwards;
+}
+
+.chart-placeholder {
+  height: 400px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 2px dashed #eceff1;
+  margin-bottom: 25px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.action-buttons button {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  background: #2c3e50;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    background 0.3s ease;
+}
+
+.action-buttons button:hover {
+  background: #34495e;
+  transform: translateY(-2px);
+}
+
+.action-buttons button:active {
+  transform: translateY(0);
+}
+
+.event-list {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #f1f3f5;
+}
+
+.event-item {
+  padding: 16px;
+  background: white;
+  border-bottom: 1px solid #f8f9fa;
+  transition: background 0.2s ease;
+}
+
+.event-item:hover {
+  background: #f8f9fa;
+}
+
+.event-time {
+  color: #7f8c8d;
+  font-size: 13px;
+  font-family: monospace;
+}
+
+.event-desc {
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .analysis-tabs {
+    border-radius: 6px;
+  }
+  .tab-nav {
+    padding: 0;
+  }
+}
