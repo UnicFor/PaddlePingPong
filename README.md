@@ -1,4 +1,4 @@
-# PaddlePingPong（后端文件）
+# PaddlePingPong（后端文件,包含已构建的前端文件）
 ### 前端文件参考Frontend分支
 
 ## 核心框架
