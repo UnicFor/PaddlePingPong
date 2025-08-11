@@ -110,7 +110,7 @@ export default {
 <style scoped>
 .user-container {
   display: block;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 220px 1fr;
   min-height: 100vh;
   width: 100%;
   height: 100%;

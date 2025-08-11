@@ -1,14 +1,14 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import {computed, ref, watch} from 'vue'
 import { useAuthStore } from './auth'
 
 // 模拟数据生成器
 const generateMockData = () => {
   const baseTime = Date.now();
-  return Array.from({ length: 5 }, (_, i) => ({
+  return Array.from({ length: 10 }, (_, i) => ({
     id: i + 1,
     time: new Date(baseTime + i * 1000).toLocaleString(),
-    status: i === 0 ? 'expired' : (i === 4 ? 'processing' : 'completed'),
+    status: i === 0 ? 'expired' : (i === 19 ? 'processing' : 'completed'),
     expiry: "2024-03-20"
   }));
 }
@@ -19,6 +19,13 @@ export const useHistoryStore = defineStore('history', () => {
     const currentAnalysisId = ref(null)
     const isLoading = ref(false)
     const error = ref(null)
+
+    const initialized = ref(false)
+    const polling = ref(null)
+
+    const processingItems = computed(() =>
+      historyItems.value.filter(item => item.status === 'processing')
+    )
 
     const setCurrentAnalysisId = (id) => {
         currentAnalysisId.value = id
@@ -64,15 +71,23 @@ export const useHistoryStore = defineStore('history', () => {
             historyItems.value = data.map(item => ({
               id: item.id,
               user_id: item.user_id,
-              video_id: item.video_id,  // 新增字段映射
+              video_id: item.video_id,
               time: item.time,
               status: item.status,
               expiry: item.expiry
             }))
 
             // 设置默认最新记录
-            if (historyItems.value.length > 0) {
-                currentAnalysisId.value = historyItems.value[0].id
+            if (!initialized.value) {
+                if (historyItems.value.length > 0) {
+                    const validRecords = [...historyItems.value]
+                        .filter(item => item.status === 'completed')
+                        .sort((a, b) => b.id - a.id)
+
+                    currentAnalysisId.value = validRecords[0]?.id || null
+                }
+
+                initialized.value = true // 标记已初始化
             }
 
             error.value = null
@@ -81,6 +96,9 @@ export const useHistoryStore = defineStore('history', () => {
             console.error('获取历史记录失败:', err)
         } finally {
             isLoading.value = false
+            if (processingItems.value.length > 0) {
+              polling.value = setTimeout(fetchHistory, 10000) // 每10秒轮询
+            }
         }
     }
 
@@ -141,6 +159,12 @@ export const useHistoryStore = defineStore('history', () => {
         }
     }
 
+    const startAutoRefresh = () => {
+      if (processingItems.value.length > 0) {
+        polling.value = setTimeout(fetchHistory, 10000)
+      }
+    }
+
     return {
         historyItems,
         currentAnalysisId,
@@ -148,6 +172,9 @@ export const useHistoryStore = defineStore('history', () => {
         error,
         setCurrentAnalysisId,
         fetchHistory,
-        deleteItem
+        deleteItem,
+        polling,
+        startAutoRefresh,
+        processingItems
     }
 })

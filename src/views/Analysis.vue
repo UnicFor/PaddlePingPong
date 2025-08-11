@@ -1,6 +1,5 @@
 <script setup>
 import FramePanel from '@/components/FramePanel.vue'
-import AnalysisTabs from '@/components/AnalysisTabs.vue'
 import VideoComparator from "@/components/VideoComparator.vue";
 import axios from 'axios'
 
@@ -82,10 +81,9 @@ watch(currentVideoId, (newId) => {
         :processed-src="processedUrl"
       />
       <FramePanel
-          v-if="currentAnalysis?.video_id && !loading"
-          :video-id="currentAnalysis.video_id"
+        :video-id="currentAnalysis.video_id"
       />
-      <AnalysisTabs />
+
     </div>
   </div>
 </template>

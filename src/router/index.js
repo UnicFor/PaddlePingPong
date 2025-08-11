@@ -8,11 +8,6 @@ const routes = [
     component: () => import('@/views/WelcomeView.vue') // 直接动态导入
   },
   {
-    path: '/test',
-    name: 'Test',
-    component: () => import('@/views/Test.vue')
-  },
-  {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/LoginView.vue')
@@ -31,7 +26,7 @@ const routes = [
     path: '/main',
     name: 'Main',
     component: () => import('@/views/Main.vue'),
-    // meta: { requiresAuth: true }
+    meta: { requiresAuth: true }
   }
 ]
 
@@ -42,6 +37,10 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach((to) => {
+  if (process.env.NODE_ENV === 'development') {
+    return true
+  }
+
   const authStore = useAuthStore()
 
   // 检查是否需要登录

@@ -1,80 +1,128 @@
 <template>
   <div class="video-panel">
     <div class="video-wrapper">
-      <h2>视频帧分析</h2>
-
-      <!-- 选项面板 -->
-      <div class="options-panel">
-        <label>
-          <input type="checkbox" v-model="showPose"> 添加骨骼点检测
-        </label>
-        <label>
-          <input type="checkbox" v-model="showCoordinates"> 添加坐标绘制
-          <span v-if="poseLoading">(加载中...)</span>
-        </label>
-
-        <div v-if="showCoordinates" class="skeleton-controls">
-          <label>
-            <input type="checkbox" v-model="showSkeleton"> 显示骨骼点
-          </label>
-          <label>
-            <input type="checkbox" v-model="showBBox"> 显示边界框
-          </label>
-          <label>
-            <input type="checkbox" v-model="showDebug"> 显示调试信息
-          </label>
-          <label>
-            <input type="checkbox" v-model="showLabels"> 显示关键点标签
-          </label>
+      <div class="frame-panel">
+        <h2>视频帧分析</h2>
+        <!-- 视频帧容器 -->
+        <div class="video-frame" style="position: relative">
+          <img
+            :src="currentFrame"
+            alt=""
+            @load="handleImageLoad"
+          />
+          <div ref="skeletonOverlay" class="skeleton-overlay" style="position: absolute"></div>
+          <div v-if="loading" class="loading-overlay">
+            <div class="loading-text">加载中... {{ loadedCount }}/{{ totalFrames }}</div>
+          </div>
         </div>
-      </div>
 
-      <!-- 视频帧容器 -->
-      <div class="video-frame">
-        <img
-          :src="currentFrame"
-          alt=""
-          @load="handleImageLoad"
+        <!-- 选项面板 -->
+        <div class="options-panel">
+          <label>
+            <input type="checkbox" v-model="showPose"> 添加骨骼点检测
+          </label>
+          <label>
+            <input type="checkbox" v-model="showCoordinates"> 添加坐标绘制
+            <span v-if="poseLoading">(加载中...)</span>
+          </label>
+
+          <div v-if="showCoordinates" class="skeleton-controls">
+            <label>
+              <input type="checkbox" v-model="showSkeleton"> 显示骨骼点
+            </label>
+            <label>
+              <input type="checkbox" v-model="showBBox"> 显示边界框
+            </label>
+            <label>
+              <input type="checkbox" v-model="showLabels"> 显示关键点标签
+            </label>
+            <label>
+              <input type="checkbox" v-model="showDebug"> 显示调试信息
+            </label>
+          </div>
+        </div>
+
+        <!-- 视频控制 -->
+        <div class="video-controls">
+          <input
+            type="range"
+            v-model.number="currentProgress"
+            :min="0"
+            :max="totalFrames - 1"
+            step="1"
+            :disabled="loading"
+          />
+          <div class="time-display">
+            {{ currentFrameIndex }} / {{ totalFrames }}
+          </div>
+        </div>
+
+        <!-- 导航按钮 -->
+        <div class="navigation-buttons">
+          <button
+              @click="prevFrame"
+              :disabled="currentProgress === 0"
+              class="sync-button"
+          >上一帧</button>
+          <button
+              @click="nextFrame"
+              :disabled="currentProgress === totalFrames - 1"
+              class="sync-button"
+          >下一帧</button>
+        </div>
+        <AnalysisTabs
+          :video-id="videoId"
         />
-        <div ref="skeletonOverlay" class="skeleton-overlay"></div>
-        <div v-if="loading" class="loading-overlay">
-          <div class="loading-text">加载中... {{ loadedCount }}/{{ totalFrames }}</div>
-        </div>
       </div>
 
       <!-- 调试面板 -->
-      <div v-if="showDebug" class="debug-panel">
-        <pre>{{ debugInfo }}</pre>
-      </div>
 
-      <!-- 视频控制 -->
-      <div class="video-controls">
-        <input
-          type="range"
-          v-model.number="currentProgress"
-          :min="0"
-          :max="totalFrames - 1"
-          step="1"
-          :disabled="loading"
-        />
-        <div class="time-display">
-          {{ currentFrameIndex }} / {{ totalFrames }}
+      <div v-if="showDebug" class="debug-panel-title">
+        <h2 >调试面板</h2>
+        <div v-if="showDebug" class="debug-panel">
+        <div class="instance-container">
+          <div v-for="(instance, index) in debugInstances" :key="index" class="instance-card">
+            <div class="instance-header">
+              <h3>实例 {{ index + 1 }}</h3>
+              <div class="confidence-badge" :style="getConfidenceStyle(instance.avgConfidence)">
+                {{ (instance.avgConfidence * 100).toFixed(0) }}%
+              </div>
+            </div>
+
+            <!-- 边界框信息 -->
+            <div class="bbox-info">
+              <span class="data-label">边界框:</span>
+              <span class="data-value">({{ instance.bbox.x1 }}, {{ instance.bbox.y1 }}) → ({{ instance.bbox.x2 }}, {{ instance.bbox.y2 }})</span>
+            </div>
+
+            <!-- 关键点表格 -->
+            <table class="keypoint-table">
+              <thead>
+                <tr>
+                  <th>关键点</th>
+                  <th>X坐标</th>
+                  <th>Y坐标</th>
+                  <th>置信度</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(kpt, kidx) in instance.keypoints" :key="kidx">
+                  <td>{{ kpt.name }}</td>
+                  <td>{{ kpt.x }}</td>
+                  <td>{{ kpt.y }}</td>
+                  <td>
+                    <span class="confidence-bar" :style="getConfidenceBarStyle(kpt.score)">
+                      {{ (kpt.score * 100).toFixed(0) }}%
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-
-      <!-- 导航按钮 -->
-      <div class="navigation-buttons">
-        <button
-            @click="prevFrame"
-            :disabled="currentProgress === 0"
-            class="sync-button"
-        >上一帧</button>
-        <button
-            @click="nextFrame"
-            :disabled="currentProgress === totalFrames - 1"
-            class="sync-button"
-        >下一帧</button>
       </div>
+
     </div>
   </div>
 </template>
@@ -82,6 +130,8 @@
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import AnalysisTabs from "@/components/AnalysisTabs.vue";
+const auth = useAuthStore()
 
 const props = defineProps({
   videoId: {
@@ -89,8 +139,6 @@ const props = defineProps({
     required: true
   }
 })
-
-const auth = useAuthStore()
 
 // 状态管理
 const frames = ref([])
@@ -117,61 +165,71 @@ const currentFrameIndex = computed(() => currentProgress.value + 1)
 const currentFrame = computed(() => currentFrames.value[currentProgress.value] || '')
 
 // 调试信息
-const debugInfo = computed(() => {
-  // 三级数据校验
-  if (!poseData.value?.instance_info?.length) {
-    return '骨骼数据加载中或格式异常'
-  }
+const debugInstances = computed(() => {
+  if (!poseData.value?.instance_info?.length) return []
 
-  const frameData = poseData.value.instance_info.find(f =>
-    f.frame_id === currentFrameIndex.value
+  const frameData = poseData.value.instance_info.find(
+    f => f.frame_id === currentFrameIndex.value
   )
 
-  // 校验找到的帧数据
-  if (!frameData?.instances?.length) {
-    return `帧 ${currentFrameIndex.value} 无检测实例`
-  }
+  return (frameData?.instances || []).map(instance => {
+    const keypoints = (instance.keypoints || []).map((kpt, kidx) => ({
+      name: poseData.value.meta_info?.keypoint_id2name?.[kidx] || `点${kidx}`,
+      x: kpt[0]?.toFixed(1) || 'NaN',
+      y: kpt[1]?.toFixed(1) || 'NaN',
+      score: instance.keypoint_scores?.[kidx] || 0
+    }))
 
-  let info = `=== 帧 ${currentFrameIndex.value} ===\n`
-  frameData.instances.forEach((inst, idx) => {
-    info += `实例 ${idx + 1}:\n`
+    const bbox = instance.bbox || []
+    const scores = keypoints.map(k => k.score)
+    const avgConfidence = scores.length > 0
+      ? scores.reduce((a, b) => a + b, 0) / scores.length
+      : 0
 
-    if (Array.isArray(inst.bbox) && inst.bbox.length >= 4) {
-      const [x1, y1, x2, y2] = inst.bbox
-      info += `边界框: x1=${x1.toFixed(1)}, y1=${y1.toFixed(1)}, x2=${x2.toFixed(1)}, y2=${y2.toFixed(1)}\n`
+    return {
+      bbox: {
+        x1: bbox[0]?.toFixed(1) || 'NaN',
+        y1: bbox[1]?.toFixed(1) || 'NaN',
+        x2: bbox[2]?.toFixed(1) || 'NaN',
+        y2: bbox[3]?.toFixed(1) || 'NaN'
+      },
+      keypoints,
+      avgConfidence
     }
-
-    if (Array.isArray(inst.keypoints)) {
-      const keyPointNames = poseData.value.meta_info?.keypoint_id2name || {}
-      info += "关键点:\n"
-      inst.keypoints.forEach((kpt, kidx) => {
-        const name = keyPointNames[kidx] || `点${kidx}`
-        const score = inst.keypoint_scores?.[kidx]?.toFixed(2) ?? 'N/A'
-        info += `  ${name}: [${kpt[0]?.toFixed(1) ?? 'NaN'}, ${kpt[1]?.toFixed(1) ?? 'NaN'}], 置信度: ${score}\n`
-      })
-    }
-    info += '\n'
   })
-  return info
+})
+
+// 样式计算函数
+const getConfidenceStyle = (score) => ({
+  backgroundColor: `hsl(${score * 120}, 70%, 40%)`,
+  color: score > 0.6 ? 'white' : '#333'
+})
+
+const getConfidenceBarStyle = (score) => ({
+  width: `${score * 100}%`,
+  backgroundColor: `hsl(${score * 120}, 70%, 50%)`
 })
 
 // 图像加载处理
 const handleImageLoad = () => {
+
   if (!showCoordinates.value || !poseData.value?.instance_info) return
 
-  nextTick(() => {
-    const img = document.querySelector('.video-frame img')
+  nextTick(async () => {
+    const img = await waitForImageLoad()
     const overlay = skeletonOverlay.value
     overlay.innerHTML = ''
 
     if (!img || !overlay) return
 
     try {
-      const scaleX = img.clientWidth / img.naturalWidth
-      const scaleY = img.clientHeight / img.naturalHeight
+      const rect = img.getBoundingClientRect()
+      const { naturalWidth, naturalHeight } = img
+      const scaleX = rect.width / naturalWidth
+      const scaleY = rect.height / naturalHeight
 
       const frameData = poseData.value.instance_info?.find(f =>
-        f.frame_id === currentFrameIndex.value
+          f.frame_id === currentFrameIndex.value
       )
 
       if (!frameData?.instances) return
@@ -190,7 +248,8 @@ const handleImageLoad = () => {
               top: `${y1 * scaleY}px`,
               width: `${(x2 - x1) * scaleX}px`,
               height: `${(y2 - y1) * scaleY}px`,
-              display: showBBox.value ? 'block' : 'none'
+              display: showBBox.value ? 'block' : 'none',
+              position: 'absolute',
             })
             overlay.appendChild(bbox)
           }
@@ -207,7 +266,8 @@ const handleImageLoad = () => {
             Object.assign(pointEl.style, {
               left: `${x * scaleX}px`,
               top: `${y * scaleY}px`,
-              display: showSkeleton.value ? 'block' : 'none'
+              display: showSkeleton.value ? 'block' : 'none',
+              position: 'absolute',
             })
             overlay.appendChild(pointEl)
 
@@ -232,6 +292,14 @@ const handleImageLoad = () => {
   })
 }
 
+const waitForImageLoad = () => {
+  return new Promise(resolve => {
+    const img = document.querySelector('.video-frame img')
+    if (img.complete) return resolve(img)
+    img.onload = () => resolve(img)
+  })
+}
+
 // 导航控制
 const prevFrame = () => currentProgress.value > 0 && currentProgress.value--
 const nextFrame = () => currentProgress.value < totalFrames.value - 1 && currentProgress.value++
@@ -246,7 +314,7 @@ watch(showPose, async (newVal) => {
 
 watch(showCoordinates, (newVal) => {
   if (newVal && !poseData.value) loadPoseData(props.videoId)
-})
+});
 
 // 初始化
 onMounted(async () => {
@@ -287,10 +355,7 @@ async function loadPoseData(videoId) {
             headers: { Authorization: `Bearer ${auth.token}` }
         });
 
-        if (!response.ok) throw new Error(`HTTP错误 ${response.status}`);
-
         const res = await response.json();
-        if (!res.success) throw new Error(res.message || '未知错误');
 
         // 扁平化处理关键数据结构
         const normalizedData = {
@@ -331,4 +396,4 @@ function ensure2DArray(arr) {
 }
 </script>
 
-<style src="@/assets/css/frame.css"></style>
+<style scoped src="@/assets/css/frame.css"></style>

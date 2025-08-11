@@ -3,9 +3,9 @@ import { ref } from 'vue'
 
 export const useAuthStore = defineStore('auth', () => {
   // 从localStorage初始化登录状态
-    const isLoggedIn = ref(!!localStorage.getItem('jwt'))
-    const token = ref(localStorage.getItem('jwt') || null)
-    const userInfo = ref(null)
+    const isLoggedIn = ref(process.env.NODE_ENV === 'development' || !!localStorage.getItem('jwt'))
+    const token = ref(process.env.NODE_ENV === 'development' ? 'dev_token' : localStorage.getItem('jwt') || null)
+    const userInfo = ref(process.env.NODE_ENV === 'development' ? { name: '开发用户', id: 'dev_user' } : null)
 
     // 登录方法
     const login = async (jwt) => {
@@ -38,10 +38,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 初始化时尝试从本地存储恢复状态
   const initialize = () => {
-    const savedToken = localStorage.getItem('jwt')
-    if (savedToken) {
-      token.value = savedToken
-      isLoggedIn.value = true
+    if (process.env.NODE_ENV !== 'development') {
+      const savedToken = localStorage.getItem('jwt')
+      if (savedToken) {
+        token.value = savedToken
+        isLoggedIn.value = true
+      }
     }
   }
 

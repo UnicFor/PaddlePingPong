@@ -2,10 +2,20 @@
 import HistoryItem from '@/components/HistoryItem.vue'
 import HistoryHeader from '@/components/HistoryHeader.vue'
 import { useHistoryStore } from '@/stores/history.js'
-import { ref, computed } from 'vue'
+
+import {ref, computed, onMounted, onBeforeUnmount} from 'vue'
+
+import ServerGauge from "@/components/ServerGauge.vue";
+import CommitHeatmap from "@/components/HeatMap.vue";
+
 
 export default {
-  components: { HistoryItem, HistoryHeader },
+  components: {ServerGauge, CommitHeatmap, HistoryItem, HistoryHeader },
+  data() {
+    return {
+      year: new Date().getFullYear()
+    }
+  },
   setup() {
     const historyStore = useHistoryStore()
     const searchQuery = ref('')
@@ -29,6 +39,14 @@ export default {
       await historyStore.deleteItem(id)
     }
 
+    onMounted(() => {
+      historyStore.startAutoRefresh() // 进入页面启动
+    })
+
+    onBeforeUnmount(() => {
+      clearTimeout(historyStore.polling) // 离开页面停止
+    })
+
     return {
       searchQuery,
       filteredItems,
@@ -41,7 +59,16 @@ export default {
 
 <template>
   <section class="analysis-history">
-    <h2 class="section-title">分析历史记录</h2>
+    <h2 class="section-title">分析详情</h2>
+    <div class="dashboard-container">
+      <div class="heatmap-section">
+        <commit-heatmap :year="year" />
+      </div>
+      <div class="gauge-section">
+        <server-gauge title="服务器负载监控" />
+      </div>
+    </div>
+    <h2 class="section-title">历史记录</h2>
     <div class="search-filter">
       <input
         v-model="searchQuery"
@@ -128,6 +155,19 @@ export default {
   margin-top: 10px;
   border: 1px solid #ffcccc;
   text-align: center;
+}
+
+.dashboard-container {
+  display: flex;
+  gap: 20px;
+}
+
+.heatmap-section {
+  flex: 3;
+}
+
+.gauge-section {
+  flex: 2;
 }
 
 @media (max-width: 768px) {

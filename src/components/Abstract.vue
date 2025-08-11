@@ -9,16 +9,19 @@ export default {
         {
           icon: "📹",
           title: "非接触式动作捕捉",
-          items: ["多目标实时跟踪", "人体关键点识别", "球拍姿态解算", "轨迹预测算法"],
+          items: ["多目标实时跟踪", "人体关键点识别", "击球姿态解算", "轨迹预测算法"],
           tags: [
             { name: "PaddlePaddle", type: "paddle" },
-            { name: "PaddleDetection", type: "" }
+            { name: "PaddleDetection", type: "" },
+            { name: "PPHuman", type: "" },
+            { name: "PPTSM", type: "" },
+            { name: "PP-TinyPose", type: "" },
           ]
         },
         {
           icon: "🧠",
           title: "运动效果评估",
-          items: ["动作质量评分", "技战术分析", "训练建议生成", "损伤风险预测"],
+          items: ["动作质量评分", "技战术分析", "训练建议生成", "多维度信息生成"],
           tags: [
             { name: "文心大模型", type: "wenxin" },
             { name: "Prompt Engineering", type: "" }
@@ -27,7 +30,7 @@ export default {
         {
           icon: "📊",
           title: "多维度数据呈现",
-          items: ["运动轨迹热力图", "3D动作重建", "生物力学分析", "对抗模拟推演"],
+          items: ["运动轨迹热力图", "动作角度呈现", "人体骨骼图标注", "模型调试数据"],
           tags: [
             { name: "Three.js", type: "" },
             { name: "ECharts", type: "" }

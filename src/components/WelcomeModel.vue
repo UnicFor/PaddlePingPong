@@ -13,12 +13,15 @@ const navigationMap = {
 
 const handleNavigation = (type) => {
   if (type === 'analysis') {
+    if (process.env.NODE_ENV === 'development') {
+      router.push('/main')
+      return
+    }
     // 检查登录状态
     if (authStore.isLoggedIn) {
       router.push('/main')
     } else {
-      router.push('/main')
-      // router.push('/login?redirect=/main')
+      router.push('/login?redirect=/main')
     }
   } else {
     router.push(navigationMap[type])

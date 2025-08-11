@@ -185,6 +185,7 @@ export default {
 
 .comparison-container {
   display: grid;
+  gap: 20px;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
 }
 
@@ -230,7 +231,8 @@ video {
 
 .global-controls {
   display: flex;
-  gap: 10px;
+  gap: 6px;
+  margin-bottom: 1rem;
   z-index: 1;
 }
 
