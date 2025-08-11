@@ -1,8 +1,11 @@
-<script>
-import { shallowRef, markRaw, defineAsyncComponent } from 'vue'
+<script setup>
+import { shallowRef, ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import SideNav from '@/components/SideNav.vue'
-import AuthPanel from '@/components/AuthPanel.vue'
+import AuthPanel from '@/components/UserPanel.vue'
+import { markRaw, defineAsyncComponent } from 'vue'
 
+// 使用 defineAsyncComponent 和 markRaw 进行组件懒加载
 const AnalysisHistory = markRaw(defineAsyncComponent(() =>
   import('@/views/AnalysisHistory.vue')
 ))
@@ -16,59 +19,56 @@ const Analysis = markRaw(
   })
 )
 
-export default {
-  components: {
-    SideNav, AuthPanel
-  },
-  data() {
-    return {
-      isMobile: false,
-      activeTab: 'analysis-history',
-      showUserPanel: false,
-      isSidebarCollapsed: false,
-      componentsMap: shallowRef({
-        'analysis-history': AnalysisHistory,
-        'technical-evaluation': TechnicalEvaluation,
-        'analysis-view':Analysis
-      }),
-    }
-  },
-  computed: {
-    activeComponent() {
-      return this.componentsMap[this.activeTab]
-    },
-    sidebarWidth() {
-      return this.isMobile ? '0' : (this.isSidebarCollapsed ? '20px' : '240px')
-    }
-  },
-  mounted() {
-    this.checkIsMobile()
-    window.addEventListener('resize', this.checkIsMobile)
-  },
-  beforeUnmount() {
-    window.removeEventListener('resize', this.checkIsMobile)
-  },
-  methods: {
-    switchTab(tab) {
-      this.activeTab = tab
-    },
-    switchToAnalysisView() {
-      this.activeTab = 'analysis-view'
-    },
-    toggleUserPanel() {
-      this.showUserPanel = !this.showUserPanel
-    },
-    handleLogout() {
-      localStorage.removeItem('mockAuth')
-      localStorage.removeItem('mockUser')
-      this.$router.push('/login')
-    },
-    checkIsMobile() {
-    this.isMobile = window.innerWidth <= 768
-      if (this.isMobile && !this.isSidebarCollapsed) {
-        this.isSidebarCollapsed = true
-      }
-    }
+const isMobile = ref(false)
+const activeTab = ref('analysis-history')
+const showUserPanel = ref(false)
+const isSidebarCollapsed = ref(false)
+const componentsMap = shallowRef({
+  'analysis-history': AnalysisHistory,
+  'technical-evaluation': TechnicalEvaluation,
+  'analysis-view': Analysis
+})
+
+const router = useRouter()
+
+const currentUser = ref(JSON.parse(localStorage.getItem('mockUser') || 'null'))
+
+const activeComponent = computed(() => componentsMap.value[activeTab.value])
+const sidebarWidth = computed(() =>
+  isMobile.value ? '0' : (isSidebarCollapsed.value ? '20px' : '240px')
+)
+
+onMounted(() => {
+  checkIsMobile()
+  window.addEventListener('resize', checkIsMobile)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', checkIsMobile)
+})
+
+function switchTab(tab) {
+  activeTab.value = tab
+}
+
+function switchToAnalysisView() {
+  activeTab.value = 'analysis-view'
+}
+
+function toggleUserPanel() {
+  showUserPanel.value = !showUserPanel.value
+}
+
+function handleLogout() {
+  localStorage.removeItem('mockAuth')
+  localStorage.removeItem('mockUser')
+  router.push('/login')
+}
+
+function checkIsMobile() {
+  isMobile.value = window.innerWidth <= 768
+  if (isMobile.value && !isSidebarCollapsed.value) {
+    isSidebarCollapsed.value = true
   }
 }
 </script>

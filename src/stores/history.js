@@ -8,7 +8,7 @@ const generateMockData = () => {
   return Array.from({ length: 10 }, (_, i) => ({
     id: i + 1,
     time: new Date(baseTime + i * 1000).toLocaleString(),
-    status: i === 0 ? 'expired' : (i === 19 ? 'processing' : 'completed'),
+    status: i === 0 ? 'expired' : (i === 9 ? 'processing' : 'completed'),
     expiry: "2024-03-20"
   }));
 }
@@ -33,12 +33,16 @@ export const useHistoryStore = defineStore('history', () => {
 
     const fetchHistory = async () => {
         try {
-            isLoading.value = true
-
+            if (historyItems.value.length === 0 || processingItems.value.length > 0) {
+                isLoading.value = true;
+            }
             // 开发环境使用模拟数据
             if (import.meta.env.MODE === 'development') {
                 await new Promise(resolve => setTimeout(resolve, 500))
-                historyItems.value = generateMockData()
+
+                // 首次加载时强制生成模拟数据
+                const newData = generateMockData();
+                updateHistoryItems(newData);
 
                 // 设置默认最新记录
                 if (historyItems.value.length > 0) {
@@ -48,7 +52,8 @@ export const useHistoryStore = defineStore('history', () => {
                         .sort((a, b) => b.id - a.id)
 
                     // 优先选择最新非 processing 记录，若没有则保持 null
-                    currentAnalysisId.value = validRecords[0]?.id || null
+                    currentAnalysisId.value = validRecords[0]?.id || null;
+                    initialized.value = true;
                 }
                 error.value = null
                 return
@@ -77,17 +82,16 @@ export const useHistoryStore = defineStore('history', () => {
               expiry: item.expiry
             }))
 
-            // 设置默认最新记录
-            if (!initialized.value) {
-                if (historyItems.value.length > 0) {
-                    const validRecords = [...historyItems.value]
-                        .filter(item => item.status === 'completed')
-                        .sort((a, b) => b.id - a.id)
+            // 使用新函数更新数据，避免完全替换
+            updateHistoryItems(data);
 
-                    currentAnalysisId.value = validRecords[0]?.id || null
-                }
-
-                initialized.value = true // 标记已初始化
+            // 设置默认最新记录 (保持不变)
+            if (!initialized.value && historyItems.value.length > 0) {
+                const validRecords = [...historyItems.value]
+                    .filter(item => item.status === 'completed')
+                    .sort((a, b) => b.id - a.id);
+                currentAnalysisId.value = validRecords[0]?.id || null;
+                initialized.value = true;
             }
 
             error.value = null
@@ -95,12 +99,40 @@ export const useHistoryStore = defineStore('history', () => {
             error.value = err.message || '请求失败，请检查网络连接'
             console.error('获取历史记录失败:', err)
         } finally {
-            isLoading.value = false
-            if (processingItems.value.length > 0) {
-              polling.value = setTimeout(fetchHistory, 10000) // 每10秒轮询
-            }
+            // 延迟隐藏加载状态，避免快速闪烁
+            setTimeout(() => {
+                isLoading.value = false;
+            }, 300);
         }
     }
+
+    // 添加新函数用于智能更新历史记录
+    const updateHistoryItems = (newItems) => {
+        // 如果是首次加载，直接替换
+        if (historyItems.value.length === 0) {
+            historyItems.value = newItems;
+            return;
+        }
+
+        // 创建现有ID的映射
+        const existingItemsMap = new Map(historyItems.value.map(item => [item.id, item]));
+
+        // 更新或添加项目
+        newItems.forEach(newItem => {
+            const existingItem = existingItemsMap.get(newItem.id);
+            if (existingItem) {
+                // 只在状态发生变化时更新
+                if (existingItem.status !== newItem.status) {
+                    Object.assign(existingItem, newItem);
+                }
+            } else {
+                historyItems.value.push(newItem);
+            }
+        });
+
+        // 按ID降序排序
+        historyItems.value.sort((a, b) => b.id - a.id);
+    };
 
     const deleteItem = async (id) => {
         try {
@@ -160,9 +192,11 @@ export const useHistoryStore = defineStore('history', () => {
     }
 
     const startAutoRefresh = () => {
-      if (processingItems.value.length > 0) {
-        polling.value = setTimeout(fetchHistory, 10000)
-      }
+        if (polling.value) {
+            clearTimeout(polling.value);
+            polling.value = null;
+        }
+        polling.value = setTimeout(fetchHistory, 30000);
     }
 
     return {
