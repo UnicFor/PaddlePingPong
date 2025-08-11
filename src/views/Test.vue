@@ -1,11 +1,11 @@
 <script setup>
 import { ref } from 'vue'
-import SideNav from '@/components/SideNav.vue'
+import AuthPanel from '@/components/AuthPanel.vue';
 </script>
 
 <template>
   <body class="test-container">
-    <SideNav />
+    <AuthPanel />
   </body>
 </template>
 

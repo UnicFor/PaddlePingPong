@@ -1,7 +1,7 @@
 <script>
 import { shallowRef, markRaw, defineAsyncComponent } from 'vue'
 import SideNav from '@/components/SideNav.vue'
-import UserPanel from '@/components/UserPanel.vue'
+import AuthPanel from '@/components/AuthPanel.vue'
 
 const AnalysisHistory = markRaw(defineAsyncComponent(() =>
   import('@/views/AnalysisHistory.vue')
@@ -18,7 +18,7 @@ const Analysis = markRaw(
 
 export default {
   components: {
-    SideNav, UserPanel
+    SideNav, AuthPanel
   },
   data() {
     return {
@@ -91,7 +91,7 @@ export default {
         />
       </transition>
 
-      <UserPanel
+      <AuthPanel
         :show="showUserPanel"
         :user-info="currentUser"
         @close="toggleUserPanel"
