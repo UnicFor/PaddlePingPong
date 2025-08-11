@@ -8,6 +8,11 @@ const routes = [
     component: () => import('@/views/WelcomeView.vue') // 直接动态导入
   },
   {
+    path: '/test',
+    name: 'Test',
+    component: () => import('@/views/Test.vue')
+  },
+  {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/LoginView.vue')

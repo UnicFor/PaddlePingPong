@@ -16,7 +16,7 @@ export default defineConfig({
   },
   // 新增与Flask整合的配置
   build: {
-    outDir: '../backend/app/static',  // 构建到Flask的静态目录
+    outDir: '../../Python/PaddlePingPong/project/backend/app/static',  // 构建到Flask的静态目录
     assetsDir: 'assets',              // 静态资源子目录
     emptyOutDir: true,                // 构建时清空目标目录
     rollupOptions: {

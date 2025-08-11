@@ -1,40 +1,6 @@
-<template>
-  <div class="user-container">
-    <SidebarNav
-      :active-tab="activeTab"
-      :is-collapsed="isSidebarCollapsed"
-      @switch-tab="switchTab"
-      @toggle-user-panel="toggleUserPanel"
-      @toggle-collapse="isSidebarCollapsed = !isSidebarCollapsed"
-    />
-
-    <main class="user-main" :style="{ marginLeft: sidebarWidth }">
-      <transition name="fade-slide" mode="out-in">
-        <component
-            :is="activeComponent"
-            @check="switchToAnalysisView"
-        />
-      </transition>
-
-      <UserPanel
-        :show="showUserPanel"
-        :user-info="currentUser"
-        @close="toggleUserPanel"
-        @logout="handleLogout"
-      />
-    </main>
-
-    <div
-      v-show="isMobile && !isSidebarCollapsed"
-      class="sidebar-mask"
-      @click="isSidebarCollapsed = true"
-    ></div>
-  </div>
-</template>
-
 <script>
 import { shallowRef, markRaw, defineAsyncComponent } from 'vue'
-import SidebarNav from '@/components/SidebarNav.vue'
+import SideNav from '@/components/SideNav.vue'
 import UserPanel from '@/components/UserPanel.vue'
 
 const AnalysisHistory = markRaw(defineAsyncComponent(() =>
@@ -52,7 +18,7 @@ const Analysis = markRaw(
 
 export default {
   components: {
-    SidebarNav, UserPanel
+    SideNav, UserPanel
   },
   data() {
     return {
@@ -106,6 +72,40 @@ export default {
   }
 }
 </script>
+
+<template>
+  <div class="user-container">
+    <SideNav
+      :active-tab="activeTab"
+      :is-collapsed="isSidebarCollapsed"
+      @switch-tab="switchTab"
+      @toggle-user-panel="toggleUserPanel"
+      @toggle-collapse="isSidebarCollapsed = !isSidebarCollapsed"
+    />
+
+    <main class="user-main" :style="{ marginLeft: sidebarWidth }">
+      <transition name="fade-slide" mode="out-in">
+        <component
+            :is="activeComponent"
+            @check="switchToAnalysisView"
+        />
+      </transition>
+
+      <UserPanel
+        :show="showUserPanel"
+        :user-info="currentUser"
+        @close="toggleUserPanel"
+        @logout="handleLogout"
+      />
+    </main>
+
+    <div
+      v-show="isMobile && !isSidebarCollapsed"
+      class="sidebar-mask"
+      @click="isSidebarCollapsed = true"
+    ></div>
+  </div>
+</template>
 
 <style scoped>
 .user-container {
