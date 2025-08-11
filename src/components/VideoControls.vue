@@ -1,11 +1,47 @@
-<!-- VideoControls.vue -->
-<!-- VideoControls.vue -->
+<script setup>
+import { defineProps, defineEmits, ref, inject, watch } from 'vue';
+
+
+const props = defineProps({
+  type: String,
+  progress: Number,
+  currentTime: Number,
+  duration: Number,
+  isZoomed: Boolean
+})
+
+const emits = defineEmits(['toggle-play', 'seek', 'toggle-zoom']);
+
+// 使用 inject 获取视频引用
+const videoRefs = inject('videoRefs', null);
+const videoRef = ref(null);
+
+// 监听视频引用变化和类型变化
+watch([() => videoRefs, () => props.type], () => {
+  if (videoRefs && props.type) {
+    videoRef.value = videoRefs[`${props.type}Video`]?.value;
+  }
+}, {
+  immediate: true
+});
+
+// 格式化时间的方法
+const formatTime = (seconds) => {
+  const date = new Date(0);
+  date.setSeconds(seconds || 0);
+  return date.toISOString().slice(11, 19);
+};
+
+</script>
+
 <template>
   <div class="video-controls">
+    <!-- 播放/暂停按钮 -->
     <button @click="$emit('toggle-play')">
       {{ $parent.$refs[`${type}Video`]?.paused ? '▶' : '⏸' }}
     </button>
 
+    <!-- 进度条 -->
     <input
       type="range"
       class="progress-bar"
@@ -16,34 +52,17 @@
       step="0.1"
     >
 
+    <!-- 时间显示 -->
     <span class="time-display">
       {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
     </span>
 
+    <!-- 缩放按钮 -->
     <button @click="$emit('toggle-zoom')">
       {{ isZoomed ? '✕' : '⛶' }}
     </button>
   </div>
 </template>
-
-<script>
-export default {
-  props: {
-    type: String,
-    progress: Number,
-    currentTime: Number,
-    duration: Number,
-    isZoomed: Boolean
-  },
-  methods: {
-    formatTime(seconds) {
-      const date = new Date(0)
-      date.setSeconds(seconds || 0)
-      return date.toISOString().slice(11, 19)
-    }
-  }
-}
-</script>
 
 <style scoped>
 .video-controls {

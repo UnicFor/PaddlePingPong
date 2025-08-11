@@ -107,7 +107,7 @@ const filteredItems = computed(() => {
 
 <template>
   <section class="analysis-history">
-    <h2 class="section-title">分析详情</h2>
+    <h2 class="section-title">分析历史</h2>
     <div class="dashboard-container">
       <div class="heatmap-section">
         <CommitHeatmap :year="year" />
@@ -215,19 +215,20 @@ const filteredItems = computed(() => {
   box-shadow: 0 2px 8px rgba(44, 62, 80, 0.1);
 }
 
+/* 表格容器样式 */
 .table-container {
-  margin-top: 2rem;
-  overflow: hidden;
-  min-width: 300px;
-  box-shadow: 0 2px 8px rgba(44, 62, 80, 0.1);
+  margin-top: 2rem;        /* 顶部外边距 */
+  overflow: hidden;        /* 隐藏溢出内容 */
+  min-width: 300px;        /* 最小宽度 */
+  box-shadow: 0 2px 8px rgba(44, 62, 80, 0.1);  /* 轻微阴影效果 */
   border-radius: 8px;
 }
 
-/* 表头样式 */
+/* 表头样式 - 使用 Grid 布局 */
 .table-header {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: 2fr 1fr 1.6fr 0.8fr;
+  display: grid;           /* 启用 Grid 布局 */
+  gap: 1rem;               /* 列间距 */
+  grid-template-columns: 2fr 1fr 1.6fr 0.8fr;  /* 定义列宽比例 */
   background: #e1e9ea;
   border-radius: 8px 8px 0 0;
   padding: 1rem 1rem 1rem 2.4rem;
@@ -235,89 +236,78 @@ const filteredItems = computed(() => {
   color: #5a6a85;
 }
 
-/* 表格内容 */
+/* 表格内容区域样式 */
 .table-content {
   background: white;
   border-radius: 0 0 8px 8px;
 }
 
-/* 表格行样式 */
+/* 表格行样式 - 与表头使用相同的 Grid 布局 */
 .history-item {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: 2fr 1fr 1.6fr 0.8fr;
+  display: grid;           /* 启用 Grid 布局 */
+  gap: 1rem;               /* 列间距 */
+  grid-template-columns: 2fr 1fr 1.6fr 0.8fr;  /* 与表头相同的列宽比例 */
   padding: 1rem 1rem 1rem 2.4rem;
-  border-bottom: 1px solid #f0f0f0;
-  align-items: center;
-  transition: background-color 0.2s;
+  border-bottom: 1px solid #f0f0f0;  /* 底部边框 */
+  align-items: center;     /* 垂直居中对齐 */
+  transition: background-color 0.2s;  /* 背景色过渡效果 */
 }
 
+/* 最后一行去除底部边框 */
 .history-item:last-child {
   border-bottom: none;
 }
 
+/* 鼠标悬停效果 */
 .history-item:hover {
-  background-color: #f9f9f9;
+  background-color: #f0f0f0;
 }
 
-/* 列样式 */
+/* 列样式 - 处理内容溢出 */
 .time-col, .status-col, .expiry-col, .action-col {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: hidden;        /* 隐藏溢出内容 */
+  text-overflow: ellipsis; /* 溢出文本显示省略号 */
+  white-space: nowrap;     /* 不换行 */
 }
 
+/* 状态标签样式 */
 .status-badge {
-  padding: 0.2rem 0.6rem;
-  border-radius: 4px;
-  font-size: 0.85rem;
+  padding: 0.2rem 0.6rem;  /* 内边距 */
+  border-radius: 8px;      /* 圆角 */
+  font-size: 0.8rem;       /* 小字体 */
+  line-height: 1.5;        /* 添加行高属性 */
+  display: inline-block;  /* 确保标签正确显示 */
 }
 
-.status-processing {
-  background-color: #fff3cd;
-  color: #856404;
-}
+/* 不同状态的颜色 */
+.status-processing { background-color: #fff3cd; color: #856404; }  /* 分析中 - 黄色 */
+.status-completed { background-color: #d4edda; color: #155724; }    /* 已完成 - 绿色 */
+.status-expired { background-color: #f8d7da; color: #721c24; }      /* 已失效 - 红色 */
 
-.status-completed {
-  background-color: #d4edda;
-  color: #155724;
-}
-
-.status-expired {
-  background-color: #f8d7da;
-  color: #721c24;
-}
-
-.expiring-soon {
-  color: #dc3545;
-  font-weight: bold;
-}
+/* 即将过期样式 */
+.expiring-soon { color: #dc3545; font-weight: bold; }  /* 红色粗体 */
 
 /* 按钮样式 */
 .check-btn, .delete-btn {
-  padding: 0.4rem 0.8rem;
+  padding: 0.4rem 0.8rem;  /* 内边距 */
   border: none;
   border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  margin-right: 0.5rem;
+  cursor: pointer;         /* 鼠标指针 */
+  font-size: 0.85rem;      /* 小字体 */
+  margin-right: 0.5rem;    /* 右外边距 */
 }
 
-.check-btn {
-  background-color: #2c3e50;
-  color: white;
-}
+.check-btn { background-color: #2c3e50; color: white; }  /* 查看按钮 - 深蓝 */
+.check-btn.disabled { background-color: #ccc; cursor: not-allowed; }  /* 禁用状态 */
+.delete-btn { background-color: #e74c3c; color: white; }  /* 删除按钮 - 红色 */
 
-.check-btn.disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
+@media (max-width: 768px) {
+  .table-header, .history-item {
+    gap: 0;                /* 取消列间距 */
+    padding: 1rem;         /* 减少内边距 */
+    grid-template-columns: 3fr 1fr 2fr 1fr;  /* 调整列宽比例 */
+  }
 }
-
-.delete-btn {
-  background-color: #e74c3c;
-  color: white;
-}
-
 .loading, .nodata {
   padding: 20px;
   text-align: center;
