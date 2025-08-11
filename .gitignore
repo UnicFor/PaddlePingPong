@@ -177,5 +177,9 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+.idea/
 # 排除前端目录
 project/frontend/
+project/backend/app/utils/frames
+project/backend/app/utils/video
+
