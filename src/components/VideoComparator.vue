@@ -29,7 +29,6 @@ provide('videoRefs', {
   processedVideo
 });
 
-
 // 挂载时执行
 onMounted(() => {
   // 添加全屏变化事件监听

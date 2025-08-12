@@ -1,17 +1,22 @@
 .video-panel {
-  align-self: baseline;
+  position: relative;
   min-width: 320px;
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 8px 30px rgba(32, 62, 92, 0.12);
   transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-  overflow: hidden;
   margin-bottom: 0.8rem;
 }
 
 .video-wrapper {
+  display: flex;
   margin: 20px;
+  gap: 1rem;
   position: relative;
+}
+
+.frame-panel {
+  flex: 3;
 }
 
 .options-panel {
@@ -31,16 +36,17 @@
 }
 
 .skeleton-overlay {
-  position: absolute;
+  position: absolute !important;
   top: 0;
   left: 0;
+  z-index: 1000;
+  transform: translateZ(0);
   width: 100%;
   height: 100%;
   pointer-events: none;
 }
 
 .keypoint {
-  position: absolute;
   width: 6px;
   height: 6px;
   background: red;
@@ -49,16 +55,7 @@
 }
 
 .bbox {
-  position: absolute;
   border: 2px solid blue;
-}
-
-.debug-panel {
-  margin-top: 10px;
-  padding: 10px;
-  background: #f8f9fa;
-  border: 1px solid #ddd;
-  white-space: pre-wrap;
 }
 
 .navigation-buttons {
@@ -84,23 +81,18 @@
   color: #333;
 }
 
-input[type="range"] {
-  width: 100%;
-  margin: 15px 0;
-}
-
 .video-frame {
   position: relative;
   aspect-ratio: 16/9;
   margin-bottom: 20px;
-  border-radius: 12px;
   transition: filter 0.3s ease;
 }
 
 .video-frame img {
-  object-fit: cover;
+  position: relative;
   width: 100%;
   height: 100%;
+  border-radius: 12px;
 }
 
 .loading-status {
@@ -169,6 +161,11 @@ input[type="range"] {
   opacity: 0.7;
 }
 
+input[type="range"] {
+  width: 100%;
+  margin: 15px 0;
+}
+
 .sync-button {
   background: #2c3e50;
   color: white;
@@ -177,12 +174,99 @@ input[type="range"] {
   border-radius: 16px;
   cursor: pointer;
   transition: all 0.3s ease;
+  margin-bottom: 1rem;
 }
 
 .sync-button:hover {
   background: #34495e;
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(44, 62, 80, 0.2);
+}
+
+.debug-panel {
+  margin-top: 10px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.debug-panel-title {
+  flex: 2;
+}
+
+.instance-container {
+  display: grid;
+  gap: 1rem;
+}
+
+.instance-card {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease;
+}
+
+.instance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.instance-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.keypoint-table tr:hover td {
+  background-color: #f8f9fa;
+}
+
+.confidence-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85em;
+  font-weight: bold;
+}
+
+.data-label {
+  font-weight: 500;
+  color: #2c3e50;
+  margin-right: 0.5rem;
+}
+
+.data-value {
+  color: #666;
+}
+
+.keypoint-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.keypoint-table th {
+  background: #f4f6f8;
+  padding: 0.75rem;
+  text-align: left;
+  font-size: 0.9em;
+}
+
+.keypoint-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #eee;
+}
+
+.confidence-bar {
+  display: inline-block;
+  height: 24px;
+  min-width: 40px;
+  padding: 0 8px;
+  color: white;
+  text-align: center;
+  border-radius: 4px;
+  line-height: 24px;
+  font-size: 0.85em;
 }
 
 @media (max-width: 768px) {

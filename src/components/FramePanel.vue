@@ -1,7 +1,287 @@
+<script setup>
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { usePoseDataLoader } from '@/composables/usePoseDataLoader'
+
+const props = defineProps({
+  videoId: {
+    type: String,
+    required: true
+  }
+})
+
+// 使用 composable 函数
+const { frames, poseFrames, poseData, loading, poseLoading, loadFrames, loadPoseFrames, loadPoseData } = usePoseDataLoader()
+
+// 状态管理
+const currentFrames = ref([])
+const loadedCount = ref(0)
+const currentProgress = ref(0)
+const skeletonOverlay = ref(null)
+
+// 显示选项
+const showPanel = ref(true)
+const showPose = ref(false)
+const showCoordinates = ref(false)
+const showSkeleton = ref(false)
+const showBBox = ref(false)
+const showDebug = ref(false)
+const currentInstanceIndex = ref(0)
+
+// 计算属性
+const totalFrames = computed(() => currentFrames.value.length)
+const currentFrameIndex = computed(() => currentProgress.value + 1)
+const currentFrame = computed(() => currentFrames.value[currentProgress.value] || '')
+
+// 调试信息
+const debugInstances = computed(() => {
+  if (!poseData.value?.instance_info?.length) return []
+
+  // 找到当前帧的数据
+  const frameData = poseData.value.instance_info.find(
+    f => f.frame_id === currentFrameIndex.value
+  )
+
+  return (frameData?.instances || []).map(instance => {
+
+    // 处理每个关键点信息
+    const keypoints = (instance.keypoints || []).map((kpt, kidx) => ({
+      name: poseData.value.meta_info?.keypoint_id2name?.[kidx] || `点${kidx}`,
+      x: kpt[0]?.toFixed(1) || 'NaN',
+      y: kpt[1]?.toFixed(1) || 'NaN',
+      score: instance.keypoint_scores?.[kidx] || 0
+    }))
+
+    // 处理边界框信息
+    const bbox = instance.bbox || []
+    // 计算平均置信度
+    const scores = keypoints.map(k => k.score)
+    const avgConfidence = scores.length > 0
+      ? scores.reduce((a, b) => a + b, 0) / scores.length
+      : 0
+
+    return {
+      bbox: {
+        x1: bbox[0]?.toFixed(1) || 'NaN',
+        y1: bbox[1]?.toFixed(1) || 'NaN',
+        x2: bbox[2]?.toFixed(1) || 'NaN',
+        y2: bbox[3]?.toFixed(1) || 'NaN'
+      },
+      keypoints,
+      avgConfidence
+    }
+  })
+})
+
+// 样式计算函数
+// 置信度样式
+const getConfidenceStyle = (score) => ({
+  backgroundColor: `hsl(${score * 120}, 70%, 40%)`,
+  color: score > 0.6 ? 'white' : '#333'
+})
+// 置信度进度条样式
+const getConfidenceBarStyle = (score) => ({
+  width: `${score * 100}%`,
+  backgroundColor: `hsl(${score * 120}, 70%, 50%)`
+})
+
+// 导航控制
+const prevFrame = () => currentProgress.value > 0 && currentProgress.value--
+const nextFrame = () => currentProgress.value < totalFrames.value - 1 && currentProgress.value++
+
+// 图像加载处理
+const handleImageLoad = () => {
+  console.log('绘制条件检查:', {
+    showCoordinates: showCoordinates.value,
+    poseDataAvailable: !!poseData.value?.instance_info,
+    currentFrameIndex: currentFrameIndex.value
+  });
+  
+  if (!showCoordinates.value || !poseData.value?.instance_info) return
+
+  nextTick(async () => {
+    const img = await waitForImageLoad()
+    const overlay = skeletonOverlay.value
+    overlay.innerHTML = ''
+
+    if (!img || !overlay) return
+
+    drawSkeletonAndBBox(img, overlay)
+  })
+}
+
+// 重绘函数
+const redraw = async () => {
+  const overlay = skeletonOverlay.value
+  if (!overlay) return
+
+  // 清除现有绘制内容
+  overlay.innerHTML = ''
+
+  // 如果不显示坐标，直接返回
+  if (!showCoordinates.value || !poseData.value?.instance_info) return
+
+  const img = await waitForImageLoad()
+  if (!img) return
+
+  drawSkeletonAndBBox(img, overlay)
+}
+
+// 主要绘图函数
+const drawSkeletonAndBBox = (img, overlay) => {
+  try {
+    const rect = img.getBoundingClientRect()
+    const { naturalWidth, naturalHeight } = img
+    const scaleX = rect.width / naturalWidth
+    const scaleY = rect.height / naturalHeight
+
+    const frameData = poseData.value.instance_info?.find(f =>
+        f.frame_id === currentFrameIndex.value
+    )
+
+    if (!frameData?.instances) return
+
+    const keyPointNames = poseData.value.meta_info?.keypoint_id2name || {}
+
+    frameData.instances.forEach(instance => {
+      // 绘制边界框
+      if (showBBox.value && Array.isArray(instance.bbox)) {
+        drawBBox(overlay, instance.bbox, scaleX, scaleY)
+      }
+
+      // 绘制骨骼点
+      if (showSkeleton.value && Array.isArray(instance.keypoints)) {
+        drawKeypoints(overlay, instance.keypoints, keyPointNames, scaleX, scaleY)
+      }
+    })
+  } catch (e) {
+    console.error('渲染错误:', e)
+  }
+}
+
+// 绘制边界框函数
+const drawBBox = (overlay, bbox, scaleX, scaleY) => {
+  if (bbox.length >= 4) {
+    const [x1, y1, x2, y2] = bbox
+    const bboxEl = document.createElement('div')
+    Object.assign(bboxEl.style, {
+      left: `${x1 * scaleX}px`,
+      top: `${y1 * scaleY}px`,
+      width: `${(x2 - x1) * scaleX}px`,
+      height: `${(y2 - y1) * scaleY}px`,
+      display: 'block',
+      position: 'absolute',
+      border: '2px solid blue', 
+    })
+    overlay.appendChild(bboxEl)
+  }
+}
+
+// 绘制关键点函数
+const drawKeypoints = (overlay, keypoints, keyPointNames, scaleX, scaleY) => {
+  keypoints.forEach((kpt, kidx) => {
+    if (kpt.length < 2) return
+
+    const [x, y] = kpt
+    // 绘制点
+    const pointEl = document.createElement('div')
+    Object.assign(pointEl.style, {
+      left: `${x * scaleX}px`,
+      top: `${y * scaleY}px`,
+      display: 'block',
+      position: 'absolute',
+      width: '6px',
+      height: '6px',
+      background: 'red',
+      borderRadius: '50%',
+      transform: 'translate(-50%, -50%)',
+    })
+    overlay.appendChild(pointEl)
+  })
+}
+
+const waitForImageLoad = () => {
+  return new Promise(resolve => {
+    const img = document.querySelector('.video-frame img')
+    if (img.complete) return resolve(img)
+    img.onload = () => resolve(img)
+  })
+}
+
+// 监听显示选项变化
+watch(showPose, async (newVal) => {
+  if (newVal && poseFrames.value.length === 0) {
+    await loadPoseFrames(props.videoId)
+  }
+  currentFrames.value = newVal ? poseFrames.value : frames.value
+})
+
+watch(showCoordinates, (newVal) => {
+  if (newVal && !poseData.value) loadPoseData(props.videoId)
+});
+
+watch(showCoordinates, (newVal) => {
+  if (newVal && !poseData.value) loadPoseData(props.videoId)
+  // 无论开启还是关闭坐标绘制，都触发重绘
+  redraw()
+});
+
+// 监听骨骼点和边界框显示选项变化
+watch([showSkeleton, showBBox], () => {
+  redraw()
+})
+
+// 面板显示状态变化会影响布局，需要重绘
+watch(showPanel, () => {
+  redraw()
+})
+
+// 监听当前帧变化
+watch(currentProgress, () => {
+  redraw()
+})
+
+// 监听布局变化
+onMounted(() => {
+  window.addEventListener('resize', redraw)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', redraw)
+})
+
+// 初始化
+onMounted(async () => {
+  if (props.videoId) {
+    frames.value = await loadFrames(props.videoId)
+    currentFrames.value = frames.value
+    loading.value = false
+  }
+})
+
+watch(() => props.videoId, async (newVal) => {
+  if (newVal) {
+    await loadFrames(newVal)
+    currentFrames.value = frames.value
+  }
+})
+
+// 调试面板显示控制关联
+watch(showDebug, (newVal) => {
+  if (newVal && !showPanel.value) {
+    showPanel.value = true;
+  }
+});
+
+watch(showPanel, (newVal) => {
+  if (!newVal && showDebug.value) {
+    showDebug.value = false;
+  }
+});
+</script>
+
 <template>
   <div class="video-panel">
-    <div class="video-wrapper">
-      <div class="frame-panel">
+    <div class="frame-panel">
         <h2>视频帧分析</h2>
         <!-- 视频帧容器 -->
         <div class="video-frame" style="position: relative">
@@ -18,13 +298,18 @@
 
         <!-- 选项面板 -->
         <div class="options-panel">
-          <label>
-            <input type="checkbox" v-model="showPose"> 添加骨骼点检测
-          </label>
-          <label>
-            <input type="checkbox" v-model="showCoordinates"> 添加坐标绘制
-            <span v-if="poseLoading">(加载中...)</span>
-          </label>
+          <div style="display: flex; flex-direction: row; gap: 1rem;">
+            <label>
+              <input type="checkbox" v-model="showPanel"> 显示右侧面板
+            </label>
+            <label>
+              <input type="checkbox" v-model="showPose"> 添加骨骼点检测
+            </label>
+            <label>
+              <input type="checkbox" v-model="showCoordinates"> 添加坐标绘制
+              <span v-if="poseLoading">(加载中...)</span>
+            </label>
+          </div>
 
           <div v-if="showCoordinates" class="skeleton-controls">
             <label>
@@ -32,9 +317,6 @@
             </label>
             <label>
               <input type="checkbox" v-model="showBBox"> 显示边界框
-            </label>
-            <label>
-              <input type="checkbox" v-model="showLabels"> 显示关键点标签
             </label>
             <label>
               <input type="checkbox" v-model="showDebug"> 显示调试信息
@@ -70,29 +352,32 @@
               class="sync-button"
           >下一帧</button>
         </div>
-        <AnalysisTabs
-          :video-id="videoId"
-        />
-      </div>
+    </div>
 
-      <!-- 调试面板 -->
-
-      <div v-if="showDebug" class="debug-panel-title">
-        <h2 >调试面板</h2>
-        <div v-if="showDebug" class="debug-panel">
+    <div v-if="showPanel" class="debug-panel">
+      <h2 >调试面板</h2>
+      <div v-if="showDebug" class="debug-content">
         <div class="instance-container">
-          <div v-for="(instance, index) in debugInstances" :key="index" class="instance-card">
+          <!-- 当前选中的实例信息 -->
+          <div v-if="debugInstances.length > 0" class="instance-card">
             <div class="instance-header">
-              <h3>实例 {{ index + 1 }}</h3>
-              <div class="confidence-badge" :style="getConfidenceStyle(instance.avgConfidence)">
-                {{ (instance.avgConfidence * 100).toFixed(0) }}%
+              <div v-if="debugInstances.length > 1" class="instance-switcher">
+                <label>选择实例:</label>
+                <select v-model="currentInstanceIndex">
+                  <option v-for="(instance, index) in debugInstances" :key="index" :value="index">
+                    实例 {{ index + 1 }}
+                  </option>
+                </select>
+              </div>
+              <div class="confidence-badge" :style="getConfidenceStyle(debugInstances[currentInstanceIndex].avgConfidence)">
+                骨骼平均置信度: {{ (debugInstances[currentInstanceIndex].avgConfidence * 100).toFixed(0) }}%
               </div>
             </div>
 
-            <!-- 边界框信息 -->
+              <!-- 边界框信息 -->
             <div class="bbox-info">
               <span class="data-label">边界框:</span>
-              <span class="data-value">({{ instance.bbox.x1 }}, {{ instance.bbox.y1 }}) → ({{ instance.bbox.x2 }}, {{ instance.bbox.y2 }})</span>
+              <span class="data-value">({{ debugInstances[currentInstanceIndex].bbox.x1 }}, {{ debugInstances[currentInstanceIndex].bbox.y1 }}) → ({{ debugInstances[currentInstanceIndex].bbox.x2 }}, {{ debugInstances[currentInstanceIndex].bbox.y2 }})</span>
             </div>
 
             <!-- 关键点表格 -->
@@ -106,7 +391,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(kpt, kidx) in instance.keypoints" :key="kidx">
+                <tr v-for="(kpt, kidx) in debugInstances[currentInstanceIndex].keypoints" :key="kidx">
                   <td>{{ kpt.name }}</td>
                   <td>{{ kpt.x }}</td>
                   <td>{{ kpt.y }}</td>
@@ -121,279 +406,413 @@
           </div>
         </div>
       </div>
-      </div>
+      <div v-else class="debug-content">
+        <div class="usage-guide">
+          <h3>视频帧分析使用说明</h3>
+          
+          <div class="guide-section">
+            <h4>⚙️ 左侧选项控制</h4>
+            <ul>
+              <li><strong>显示骨骼点检测</strong> - 在视频帧上绘制人体关键点标记</li>
+              <li><strong>添加坐标绘制</strong> - 在每个骨骼点旁显示具体坐标值</li>
+              <li><strong>显示骨骼点</strong> - 显示/隐藏所有检测到的骨骼点</li>
+              <li><strong>显示边界框</strong> - 显示/隐藏人物检测边界框</li>
+              <li><strong>显示调试信息</strong> - 在右侧面板显示详细调试数据</li>
+            </ul>
+          </div>
 
+          <div class="guide-section">
+            <h4>📋 右侧面板功能</h4>
+            <p>右侧面板显示当前视频帧的详细分析数据，包括检测到的骨骼点坐标、置信度和边界框信息。</p>
+          </div>
+
+          <div class="guide-tips">
+            <h4>💡 使用提示</h4>
+            <p>使用底部进度条可快速浏览不同帧的分析结果。勾选相应选项即可实时查看对应的可视化效果。</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { useAuthStore } from '@/stores/auth'
-import AnalysisTabs from "@/components/AnalysisTabs.vue";
-const auth = useAuthStore()
-
-const props = defineProps({
-  videoId: {
-    type: String,
-    required: true
-  }
-})
-
-// 状态管理
-const frames = ref([])
-const poseFrames = ref([])
-const currentFrames = ref([])
-const loading = ref(true)
-const loadedCount = ref(0)
-const currentProgress = ref(0)
-const skeletonOverlay = ref(null)
-const poseLoading = ref(false)
-
-// 显示选项
-const showPose = ref(false)
-const showCoordinates = ref(false)
-const showSkeleton = ref(true)
-const showBBox = ref(false)
-const showDebug = ref(false)
-const showLabels = ref(false)
-let poseData = ref(null)
-
-// 计算属性
-const totalFrames = computed(() => currentFrames.value.length)
-const currentFrameIndex = computed(() => currentProgress.value + 1)
-const currentFrame = computed(() => currentFrames.value[currentProgress.value] || '')
-
-// 调试信息
-const debugInstances = computed(() => {
-  if (!poseData.value?.instance_info?.length) return []
-
-  const frameData = poseData.value.instance_info.find(
-    f => f.frame_id === currentFrameIndex.value
-  )
-
-  return (frameData?.instances || []).map(instance => {
-    const keypoints = (instance.keypoints || []).map((kpt, kidx) => ({
-      name: poseData.value.meta_info?.keypoint_id2name?.[kidx] || `点${kidx}`,
-      x: kpt[0]?.toFixed(1) || 'NaN',
-      y: kpt[1]?.toFixed(1) || 'NaN',
-      score: instance.keypoint_scores?.[kidx] || 0
-    }))
-
-    const bbox = instance.bbox || []
-    const scores = keypoints.map(k => k.score)
-    const avgConfidence = scores.length > 0
-      ? scores.reduce((a, b) => a + b, 0) / scores.length
-      : 0
-
-    return {
-      bbox: {
-        x1: bbox[0]?.toFixed(1) || 'NaN',
-        y1: bbox[1]?.toFixed(1) || 'NaN',
-        x2: bbox[2]?.toFixed(1) || 'NaN',
-        y2: bbox[3]?.toFixed(1) || 'NaN'
-      },
-      keypoints,
-      avgConfidence
-    }
-  })
-})
-
-// 样式计算函数
-const getConfidenceStyle = (score) => ({
-  backgroundColor: `hsl(${score * 120}, 70%, 40%)`,
-  color: score > 0.6 ? 'white' : '#333'
-})
-
-const getConfidenceBarStyle = (score) => ({
-  width: `${score * 100}%`,
-  backgroundColor: `hsl(${score * 120}, 70%, 50%)`
-})
-
-// 图像加载处理
-const handleImageLoad = () => {
-
-  if (!showCoordinates.value || !poseData.value?.instance_info) return
-
-  nextTick(async () => {
-    const img = await waitForImageLoad()
-    const overlay = skeletonOverlay.value
-    overlay.innerHTML = ''
-
-    if (!img || !overlay) return
-
-    try {
-      const rect = img.getBoundingClientRect()
-      const { naturalWidth, naturalHeight } = img
-      const scaleX = rect.width / naturalWidth
-      const scaleY = rect.height / naturalHeight
-
-      const frameData = poseData.value.instance_info?.find(f =>
-          f.frame_id === currentFrameIndex.value
-      )
-
-      if (!frameData?.instances) return
-
-      const keyPointNames = poseData.value.meta_info?.keypoint_id2name || {}
-
-      frameData.instances.forEach(instance => {
-        // 绘制边界框
-        if (showBBox.value && Array.isArray(instance.bbox)) {
-          if (instance.bbox.length >= 4) {
-            const [x1, y1, x2, y2] = instance.bbox
-            const bbox = document.createElement('div')
-            bbox.className = 'bbox'
-            Object.assign(bbox.style, {
-              left: `${x1 * scaleX}px`,
-              top: `${y1 * scaleY}px`,
-              width: `${(x2 - x1) * scaleX}px`,
-              height: `${(y2 - y1) * scaleY}px`,
-              display: showBBox.value ? 'block' : 'none',
-              position: 'absolute',
-            })
-            overlay.appendChild(bbox)
-          }
-        }
-
-        // 绘制骨骼点
-        if (showSkeleton.value && Array.isArray(instance.keypoints)) {
-          instance.keypoints.forEach((kpt, kidx) => {
-            if (kpt.length < 2) return
-
-            const [x, y] = kpt
-            const pointEl = document.createElement('div')
-            pointEl.className = 'keypoint'
-            Object.assign(pointEl.style, {
-              left: `${x * scaleX}px`,
-              top: `${y * scaleY}px`,
-              display: showSkeleton.value ? 'block' : 'none',
-              position: 'absolute',
-            })
-            overlay.appendChild(pointEl)
-
-            // 绘制标签
-            if (showLabels.value) {
-              const label = document.createElement('div')
-              label.className = 'keypoint-label'
-              label.textContent = keyPointNames[kidx] || `点${kidx}`
-              Object.assign(label.style, {
-                left: `${x * scaleX}px`,
-                top: `${y * scaleY}px`,
-                transform: 'translate(-50%, -100%)'
-              })
-              overlay.appendChild(label)
-            }
-          })
-        }
-      })
-    } catch (e) {
-      console.error('渲染错误:', e)
-    }
-  })
+<style scoped>
+.video-panel {
+  position: relative;
+  display: flex;
+  padding: 1rem;
+  gap: 1rem;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(32, 62, 92, 0.12);
+  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  margin-bottom: 0.8rem;
 }
 
-const waitForImageLoad = () => {
-  return new Promise(resolve => {
-    const img = document.querySelector('.video-frame img')
-    if (img.complete) return resolve(img)
-    img.onload = () => resolve(img)
-  })
+.frame-panel {
+  flex: 1 0 600px;
+  max-width: none;
+  margin: 0;
 }
 
-// 导航控制
-const prevFrame = () => currentProgress.value > 0 && currentProgress.value--
-const nextFrame = () => currentProgress.value < totalFrames.value - 1 && currentProgress.value++
-
-// 监听显示选项变化
-watch(showPose, async (newVal) => {
-  if (newVal && poseFrames.value.length === 0) {
-    poseFrames.value = await loadFrames(props.videoId, true)
-  }
-  currentFrames.value = newVal ? poseFrames.value : frames.value
-})
-
-watch(showCoordinates, (newVal) => {
-  if (newVal && !poseData.value) loadPoseData(props.videoId)
-});
-
-// 初始化
-onMounted(async () => {
-  if (props.videoId) {
-    frames.value = await loadFrames(props.videoId)
-    currentFrames.value = frames.value
-    loading.value = false
-  }
-})
-
-watch(() => props.videoId, async (newVal) => {
-  if (newVal) {
-    frames.value = await loadFrames(newVal)
-    currentFrames.value = frames.value
-    poseFrames.value = []
-    poseData.value = null
-  }
-})
-
-// 帧加载逻辑
-const loadFrames = async (videoId, isPose = false) => {
-  const endpoint = isPose ? `/api/pose-frames/${videoId}` : `/api/frames-batch/${videoId}`
-  try {
-    const response = await fetch(endpoint, {
-      headers: { Authorization: `Bearer ${auth.token}` }
-    })
-    const { data } = await response.json()
-    return data?.frames || []
-  } catch (error) {
-    console.error('加载失败:', error)
-    return []
-  }
+.debug-panel {
+  flex: 1;
+  background: #ffffff;
+  min-width: 420px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow-y: auto;
 }
 
-async function loadPoseData(videoId) {
-    try {
-        const response = await fetch(`/api/pose-data/${videoId}`, {
-            headers: { Authorization: `Bearer ${auth.token}` }
-        });
-
-        const res = await response.json();
-
-        // 扁平化处理关键数据结构
-        const normalizedData = {
-            meta_info: {
-                ...res.data.meta_info,
-                skeleton_links: res.data.meta_info?.skeleton_links || [],
-                keypoint_colors: Array.isArray(res.data.meta_info?.keypoint_colors)
-                    ? res.data.meta_info.keypoint_colors
-                    : []
-            },
-            instance_info: (res.data.instance_info || []).map(frame => ({
-                frame_id: Number(frame.frame_id) || 0,
-                instances: (frame.instances || []).map(inst => ({
-                    bbox: Array.isArray(inst.bbox) ? inst.bbox.flat() : [],
-                    keypoints: ensure2DArray(inst.keypoints),
-                    keypoint_scores: Array.isArray(inst.keypoint_scores)
-                        ? inst.keypoint_scores
-                        : []
-                }))
-            }))
-        };
-
-        poseData.value = normalizedData;
-        return normalizedData;
-    } catch (err) {
-        console.error('骨骼数据加载失败:', err);
-        poseData.value = { error: err.message };
-        throw err;
-    }
+.debug-panel h2 {
+  margin: 1rem 1rem 0 1rem;
+  color: #1e293b;
+  font-size: 1.6rem;
+  font-weight: 600;
 }
 
-// 新增辅助函数
-function ensure2DArray(arr) {
-    if (!Array.isArray(arr)) return [];
-    return arr.map(item =>
-        Array.isArray(item) ? item.map(Number) : []
-    );
+.options-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 390px;
+  margin: 1rem 0;
+  padding: 1.2rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
-</script>
 
-<style scoped src="@/assets/css/frame.css"></style>
+.options-panel label {
+  display: flex;
+  cursor: pointer;
+  font-size: 14px;
+  color: #334155;
+  transition: all 0.2s ease;
+}
+
+.options-panel input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  accent-color: #3b82f6;
+  border-radius: 4px;
+}
+
+.skeleton-controls {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #ddd;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.skeleton-overlay {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  transform: translateZ(0);
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background-color: transparent;
+}
+
+.navigation-buttons {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-text {
+  font-size: 1.2em;
+  color: #333;
+}
+
+.video-frame {
+  position: relative;
+  aspect-ratio: 16/9;
+  margin-bottom: 20px;
+  transition: filter 0.3s ease;
+}
+
+.video-frame img {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  z-index: 1;
+}
+
+.loading-status {
+  padding: 10px;
+  background: #f0f0f0;
+  margin-top: 10px;
+  text-align: center;
+}
+
+.video-controls {
+  display: flex;
+  margin: 10px auto 10px;
+  padding: 12px 24px;
+  background: #f8fafc;
+  gap: 16px;
+  border-radius: 16px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 5px;
+  background: #e0e6ed;
+  border-radius: 3px;
+  width: 100%;
+  max-width: 1600px;
+  margin-top: 8px;
+  margin-right: 8px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.progress-bar::-webkit-slider-thumb:hover {
+  width: 8px;
+  height: 18px;
+}
+
+.progress-bar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #2c3e50;
+  border-radius: 50%;
+  cursor: grab;
+  transition: all 0.2s;
+}
+
+.progress-bar::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.2);
+}
+
+.time-display {
+  color: #5a6a85;
+  font-size: 14px;
+  letter-spacing: 1px;
+  max-width: 60px;
+  display: flex;
+  justify-content: space-between;
+  min-width: 80px;
+  align-items: center;
+}
+
+.time-display::before {
+  opacity: 0.7;
+}
+
+input[type="range"] {
+  width: 100%;
+  margin: 15px 0;
+}
+
+.sync-button {
+  background: #2c3e50;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 1rem;
+}
+
+.sync-button:hover {
+  background: #34495e;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(44, 62, 80, 0.2);
+}
+
+/* 调试面板 */
+.instance-container {
+  display: grid;
+  gap: 1rem;
+}
+
+.instance-switcher {
+  padding: 0.5rem;
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.instance-switcher label {
+  margin-right: 0.5rem;
+  font-weight: 500;
+}
+
+.instance-switcher select {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background: white;
+}
+
+.instance-card {
+  background: white;
+  padding: 1rem;
+}
+
+.instance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.keypoint-table tr:hover td {
+  background-color: #f8f9fa;
+}
+
+.confidence-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85em;
+  font-weight: bold;
+}
+
+.data-label {
+  font-weight: 500;
+  color: #2c3e50;
+  margin-right: 0.5rem;
+}
+
+.data-value {
+  color: #666;
+}
+
+.keypoint-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.keypoint-table th {
+  background: #f4f6f8;
+  padding: 0.6rem;
+  text-align: left;
+  font-size: 0.9em;
+}
+
+.keypoint-table td {
+  padding: 0.6rem;
+  border-bottom: 1px solid #eee;
+}
+
+.confidence-bar {
+  display: inline-block;
+  height: 24px;
+  min-width: 40px;
+  padding: 0 8px;
+  color: white;
+  text-align: center;
+  border-radius: 4px;
+  line-height: 24px;
+  font-size: 0.85em;
+}
+
+.usage-guide {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 1rem 2rem;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.usage-guide h3 {
+  margin: 0 0 1rem 0;
+  color: #1e293b;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.guide-section {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border-left: 3px solid #3b82f6;
+}
+
+.guide-section h4 {
+  margin: 0 0 0.75rem 0;
+  color: #1e293b;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.guide-section p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.guide-section ul {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.guide-section li {
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.guide-tips {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #fef3c7;
+  border-radius: 8px;
+  border-left: 3px solid #f59e0b;
+}
+
+.guide-tips h4 {
+  margin: 0 0 0.5rem 0;
+  color: #92400e;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.guide-tips p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #78350f;
+}
+
+@media (max-width: 1500px) {
+  .video-panel {
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+  }
+  .video-wrapper {
+    margin: 10px;
+  }
+  .video-frame {
+    margin-bottom: 4px;
+    border-radius: 6px;
+    transition: filter 0.3s ease;
+  }
+}
+</style>

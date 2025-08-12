@@ -1,8 +1,9 @@
 <script setup>
 import FramePanel from '@/components/FramePanel.vue'
 import VideoComparator from "@/components/VideoComparator.vue";
-import axios from 'axios'
+import AnalysisTabs from '@/components/AnalysisTabs.vue'
 
+import axios from 'axios'
 import { computed, ref, watch } from 'vue'
 import { useHistoryStore } from '@/stores/history.js'
 import { useAuthStore } from '@/stores/auth'
@@ -81,6 +82,9 @@ watch(currentVideoId, (newId) => {
         :processed-src="processedUrl"
       />
       <FramePanel
+        :video-id="currentAnalysis.video_id"
+      />
+      <AnalysisTabs
         :video-id="currentAnalysis.video_id"
       />
 

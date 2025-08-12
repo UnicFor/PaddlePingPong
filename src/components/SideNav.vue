@@ -410,7 +410,7 @@ const handleTabClick = (tab) => {
         padding: 2rem 1rem;
         background-color: white;
         box-shadow: 2px 0 10px rgba(0,0,0,0.05);
-        
+        z-index: 9999;
         /* 初始状态下展开 */
         transform: translateX(0);
         transition: transform 0.3s ease;
