@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import AuthPanel from '@/components/UserPanel.vue';
+import AuthPanel from '@/components/AuthPanel.vue';
 </script>
 
 <template>

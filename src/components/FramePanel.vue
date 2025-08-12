@@ -10,7 +10,17 @@ const props = defineProps({
 })
 
 // 使用 composable 函数
-const { frames, poseFrames, poseData, loading, poseLoading, loadFrames, loadPoseFrames, loadPoseData } = usePoseDataLoader()
+const {
+  frames, 
+  poseFrames, 
+  poseData, 
+  loading, 
+  poseLoading, 
+  loadFrames, 
+  loadPoseFrames, 
+  loadPoseData, 
+} = usePoseDataLoader()
+
 
 // 状态管理
 const currentFrames = ref([])
@@ -90,12 +100,6 @@ const nextFrame = () => currentProgress.value < totalFrames.value - 1 && current
 
 // 图像加载处理
 const handleImageLoad = () => {
-  console.log('绘制条件检查:', {
-    showCoordinates: showCoordinates.value,
-    poseDataAvailable: !!poseData.value?.instance_info,
-    currentFrameIndex: currentFrameIndex.value
-  });
-  
   if (!showCoordinates.value || !poseData.value?.instance_info) return
 
   nextTick(async () => {
@@ -140,17 +144,15 @@ const drawSkeletonAndBBox = (img, overlay) => {
 
     if (!frameData?.instances) return
 
-    const keyPointNames = poseData.value.meta_info?.keypoint_id2name || {}
-
-    frameData.instances.forEach(instance => {
+    frameData.instances.forEach((instance, index) => {
       // 绘制边界框
       if (showBBox.value && Array.isArray(instance.bbox)) {
-        drawBBox(overlay, instance.bbox, scaleX, scaleY)
+        drawBBox(overlay, instance.bbox, scaleX, scaleY, index)
       }
 
       // 绘制骨骼点
       if (showSkeleton.value && Array.isArray(instance.keypoints)) {
-        drawKeypoints(overlay, instance.keypoints, keyPointNames, scaleX, scaleY)
+        drawKeypoints(overlay, instance.keypoints, scaleX, scaleY)
       }
     })
   } catch (e) {
@@ -159,26 +161,65 @@ const drawSkeletonAndBBox = (img, overlay) => {
 }
 
 // 绘制边界框函数
-const drawBBox = (overlay, bbox, scaleX, scaleY) => {
-  if (bbox.length >= 4) {
-    const [x1, y1, x2, y2] = bbox
-    const bboxEl = document.createElement('div')
-    Object.assign(bboxEl.style, {
-      left: `${x1 * scaleX}px`,
-      top: `${y1 * scaleY}px`,
-      width: `${(x2 - x1) * scaleX}px`,
-      height: `${(y2 - y1) * scaleY}px`,
-      display: 'block',
-      position: 'absolute',
-      border: '2px solid blue', 
-    })
-    overlay.appendChild(bboxEl)
-  }
+const drawBBox = (overlay, bbox, scaleX, scaleY, instanceIndex) => {
+  if (bbox.length < 4) return
+  
+  const [x1, y1, x2, y2] = bbox
+  const width = (x2 - x1) * scaleX
+  const height = (y2 - y1) * scaleY
+  const left = x1 * scaleX
+  const top = y1 * scaleY
+
+  // 创建边框容器
+  const bboxContainer = document.createElement('div')
+  Object.assign(bboxContainer.style, {
+    position: 'absolute',
+    left: `${left}px`,
+    top: `${top}px`,
+    width: `${width}px`,
+    height: `${height}px`,
+    pointerEvents: 'none',
+    zIndex: '1001'
+  })
+
+  // 创建边框
+  const bboxEl = document.createElement('div')
+  Object.assign(bboxEl.style, {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    border: '2px solid #3b82f6',
+    borderRadius: '8px',
+    boxSizing: 'border-box'
+  })
+
+  // 创建标签
+  const labelEl = document.createElement('div')
+  Object.assign(labelEl.style, {
+    position: 'absolute',
+    top: '-24px',
+    right: '8px',
+    background: '#3b82f6',
+    color: 'white',
+    padding: '4px 8px',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: 'bold',
+    whiteSpace: 'nowrap',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+    zIndex: '1002'
+  })
+  labelEl.textContent = `实例${instanceIndex + 1}`
+
+  // 组装元素
+  bboxContainer.appendChild(bboxEl)
+  bboxContainer.appendChild(labelEl)
+  overlay.appendChild(bboxContainer)
 }
 
 // 绘制关键点函数
-const drawKeypoints = (overlay, keypoints, keyPointNames, scaleX, scaleY) => {
-  keypoints.forEach((kpt, kidx) => {
+const drawKeypoints = (overlay, keypoints, scaleX, scaleY) => {
+  keypoints.forEach((kpt) => {
     if (kpt.length < 2) return
 
     const [x, y] = kpt
@@ -290,6 +331,7 @@ watch(showPanel, (newVal) => {
             alt=""
             @load="handleImageLoad"
           />
+          <!-- TODO:使用Canvas替代div overlay -->
           <div ref="skeletonOverlay" class="skeleton-overlay" style="position: absolute"></div>
           <div v-if="loading" class="loading-overlay">
             <div class="loading-text">加载中... {{ loadedCount }}/{{ totalFrames }}</div>
@@ -298,17 +340,35 @@ watch(showPanel, (newVal) => {
 
         <!-- 选项面板 -->
         <div class="options-panel">
-          <div style="display: flex; flex-direction: row; gap: 1rem;">
-            <label>
-              <input type="checkbox" v-model="showPanel"> 显示右侧面板
-            </label>
-            <label>
-              <input type="checkbox" v-model="showPose"> 添加骨骼点检测
-            </label>
-            <label>
-              <input type="checkbox" v-model="showCoordinates"> 添加坐标绘制
-              <span v-if="poseLoading">(加载中...)</span>
-            </label>
+          <div style="display: flex; flex-direction: row; justify-content: space-between; gap: 1rem;">
+            <div style="display: flex; flex-direction: row; gap: 1rem;">
+              <label>
+                <input type="checkbox" v-model="showPanel"> 显示右侧面板
+              </label>
+                <label>
+                <input type="checkbox" v-model="showPose"> 添加骨骼点检测
+              </label>
+              <label>
+                <input type="checkbox" v-model="showCoordinates"> 添加坐标绘制
+                <span v-if="poseLoading">(加载中...)</span>
+              </label>
+            </div>
+
+            <!-- TODO 缓存状态显示 
+            <div class="cache-status">
+              <span v-if="cacheStatus.isLoading" style="color: #666;">检查缓存中...</span>
+              <span v-else-if="cacheStatus.isCached" style="color: green;">📦 图片帧文件已缓存</span>
+              <span v-else style="color: #8B4513;">📦 文件未缓存</span>
+              <button 
+                v-if="cacheStatus.isCached" 
+                @click="handleClearCache(props.videoId)" 
+                class="cache-button"
+              >
+                清理本视频缓存
+              </button>
+            </div>
+            -->
+
           </div>
 
           <div v-if="showCoordinates" class="skeleton-controls">
@@ -423,7 +483,7 @@ watch(showPanel, (newVal) => {
 
           <div class="guide-section">
             <h4>📋 右侧面板功能</h4>
-            <p>右侧面板显示当前视频帧的详细分析数据，包括检测到的骨骼点坐标、置信度和边界框信息。</p>
+            <p>右侧面板显示当前视频中每帧的详细分析数据，包括检测到的骨骼点坐标、置信度和边界框信息。</p>
           </div>
 
           <div class="guide-tips">
@@ -477,12 +537,13 @@ watch(showPanel, (newVal) => {
   min-width: 390px;
   margin: 1rem 0;
   padding: 1.2rem;
-  background: #f8fafc;
+  background: #e8edf3;
   border-radius: 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .options-panel label {
+  align-items: center;
   display: flex;
   cursor: pointer;
   font-size: 14px;
@@ -496,6 +557,30 @@ watch(showPanel, (newVal) => {
   margin-right: 8px;
   accent-color: #3b82f6;
   border-radius: 4px;
+}
+
+.cache-status {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 14px;
+  font-weight: 600;
+  color: green;
+}
+
+.cache-button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cache-button:hover {
+  background: #5190f6;
 }
 
 .skeleton-controls {

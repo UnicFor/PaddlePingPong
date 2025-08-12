@@ -1,5 +1,7 @@
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import frameCache from '@/composables/frameCache'
+
 
 export function usePoseDataLoader() {
   const auth = useAuthStore()
@@ -13,14 +15,34 @@ export function usePoseDataLoader() {
   const loadFrames = async (videoId) => {
     loading.value = true
     try {
+      // 先尝试从IndexedDB获取缓存
+      const cachedFrames = await frameCache.getBatch(videoId, 9999)
+      if (cachedFrames && cachedFrames.length > 0) {
+        console.log(`从缓存加载 ${cachedFrames.length} 个普通帧`)
+        frames.value = cachedFrames
+        loading.value = false
+        return cachedFrames
+      }
+
+      // 缓存未命中，从服务器获取
       const response = await fetch(`/api/frames-batch/${videoId}`, {
-        headers: { Authorization: `Bearer ${auth.token}` }
+        headers: { Authorization: `Bearer ${auth.token}` },
+        cache: 'force-cache'  // 强制使用缓存
       })
       const { data } = await response.json()
-      frames.value = data?.frames || []
-      return frames.value
+      const frameData = data?.frames || []
+
+      // 存储到IndexedDB缓存
+      if (frameData.length > 0) {
+        await frameCache.setBatch(videoId, frameData)
+        console.log(`缓存 ${frameData.length} 个普通帧到IndexedDB`)
+      }
+
+      frames.value = frameData
+      return frameData
     } catch (error) {
       console.error('加载失败:', error)
+      frames.value = []
       return []
     } finally {
       loading.value = false
@@ -31,14 +53,31 @@ export function usePoseDataLoader() {
   const loadPoseFrames = async (videoId) => {
     loading.value = true
     try {
+      const cachedFrames = await frameCache.getBatch(videoId, 9999)
+      if (cachedFrames && cachedFrames.length > 0) {
+        console.log(`从缓存加载 ${cachedFrames.length} 个姿态帧`)
+        poseFrames.value = cachedFrames
+        loading.value = false
+        return cachedFrames
+      }
+
       const response = await fetch(`/api/pose-frames/${videoId}`, {
-        headers: { Authorization: `Bearer ${auth.token}` }
+        headers: { Authorization: `Bearer ${auth.token}` },
+        cache: 'force-cache'  // 强制使用缓存
       })
       const { data } = await response.json()
-      poseFrames.value = data?.frames || []
-      return poseFrames.value
+      const frameData = data?.frames || []
+
+      if (frameData.length > 0) {
+        await frameCache.setBatch(videoId, frameData)
+        console.log(`缓存 ${frameData.length} 个姿态帧到IndexedDB`)
+      }
+
+      poseFrames.value = frameData
+      return frameData
     } catch (error) {
       console.error('加载失败:', error)
+      poseFrames.value = []
       return []
     } finally {
       loading.value = false
@@ -50,9 +89,8 @@ export function usePoseDataLoader() {
     poseLoading.value = true
     try {
       const response = await fetch(`/api/pose-data/${videoId}`, {
-        headers: { Authorization: `Bearer ${auth.token}` }
+        headers: { Authorization: `Bearer ${auth.token}` },
       })
-
       const res = await response.json()
 
       // 添加骨骼点名称翻译映射
@@ -119,6 +157,19 @@ export function usePoseDataLoader() {
     }
   }
 
+    // 清理缓存
+  const clearCache = async (videoId = null) => {
+    if (videoId) {
+      // 清理特定视频的缓存
+      const videoFrames = await frameCache.getVideoFrames(videoId)
+      console.log(`清理视频 ${videoId} 的 ${videoFrames.length} 个缓存帧`)
+    } else {
+      // 清理所有缓存
+      await frameCache.clear()
+      console.log('清理所有缓存')
+    }
+  }
+
   // 辅助函数
   function ensure2DArray(arr) {
     if (!Array.isArray(arr)) return [];
@@ -135,6 +186,9 @@ export function usePoseDataLoader() {
     poseLoading,
     loadFrames,
     loadPoseFrames,
-    loadPoseData
+    loadPoseData,
+    // 缓存管理方法
+    clearCache,
+    hasVideoCache: (videoId) => frameCache.hasVideoCache(videoId)
   }
 }
