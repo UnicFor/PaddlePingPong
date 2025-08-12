@@ -2,6 +2,8 @@ import base64
 import os
 from flask import Blueprint, jsonify, g, json, Response
 from json.decoder import JSONDecodeError
+
+from werkzeug.wrappers import response
 from ..utils.models import User, UserVideo
 from ..utils.security import jwt_required
 from ..config import BaseConfig
@@ -56,13 +58,19 @@ def get_frames_batch(video_id):
                 base64_data = base64.b64encode(img_file.read()).decode('utf-8')
                 frame_data.append(f"data:{mime_type};base64,{base64_data}")
 
-        return jsonify({
+        response = jsonify({
             "success": True,
             "data": {
                 "total": len(files),
                 "frames": frame_data
             }
         })
+
+        # 添加缓存头
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        response.headers['ETag'] = f'"{video_id}_frames"'
+
+        return response
 
     except Exception as e:
         return jsonify(success=False, message=str(e)), 500
@@ -109,13 +117,18 @@ def get_pose_frames(video_id):
                 base64_data = base64.b64encode(img_file.read()).decode('utf-8')
                 frame_data.append(f"data:{mime_type};base64,{base64_data}")
 
-        return jsonify({
+        response = jsonify({
             "success": True,
             "data": {
                 "total": len(files),
                 "frames": frame_data
             }
         })
+        # 添加缓存头
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        response.headers['ETag'] = f'"{video_id}_pose_frames"'
+
+        return response
 
     except Exception as e:
         return jsonify(success=False, message=str(e)), 500
