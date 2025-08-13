@@ -1,3 +1,14 @@
+// 帧缓存管理类
+/*
+1. 普通帧缓存：按视频ID和帧类型（normal）存储
+2. 姿态帧缓存：按视频ID和帧类型（pose）存储
+3. 缓存过期：默认7天过期，可配置
+
+TODO
+1. 配置LRU缓存策略
+2. 配额管理
+*/
+
 class FrameCacheManager {
   constructor() {
     this.dbName = 'PaddleFrameCacheDB'
@@ -167,51 +178,6 @@ class FrameCacheManager {
     }
   }
 
-  // 清理特定视频的缓存
-  async clearVideoCache(videoId, frameType = null, store = null) {
-    try {
-      const db = store ? null : await this.init()
-      const tx = store ? null : db.transaction(this.storeName, 'readwrite')
-      const actualStore = store || tx.objectStore(this.storeName)
-      
-      if (frameType) {
-        // 清理指定类型的缓存
-        const index = actualStore.index('videoId_frameType')
-        return new Promise((resolve, reject) => {
-          const request = index.openCursor(IDBKeyRange.only([videoId, frameType]))
-          request.onsuccess = () => {
-            const cursor = request.result
-            if (cursor) {
-              cursor.delete()
-              cursor.continue()
-            } else {
-              resolve()
-            }
-          }
-          request.onerror = () => reject(request.error)
-        })
-      } else {
-        // 清理该视频所有缓存
-        const index = actualStore.index('videoId')
-        return new Promise((resolve, reject) => {
-          const request = index.openCursor(IDBKeyRange.only(videoId))
-          request.onsuccess = () => {
-            const cursor = request.result
-            if (cursor) {
-              cursor.delete()
-              cursor.continue()
-            } else {
-              resolve()
-            }
-          }
-          request.onerror = () => reject(request.error)
-        })
-      }
-    } catch (error) {
-      console.error('清理视频缓存失败:', error)
-    }
-  }
-
   // 检查某个视频指定类型是否有缓存
   async hasVideoCache(videoId, frameType = null) {
     try {
@@ -279,6 +245,19 @@ class FrameCacheManager {
       return []
     }
   }
+  
+  // 清空所有缓存
+  async clear() {
+    try {
+      const db = await this.init()
+      const tx = db.transaction(this.storeName, 'readwrite')
+      const store = tx.objectStore(this.storeName)
+      
+      return store.clear()
+    } catch (error) {
+      console.error('清空缓存失败:', error)
+    }
+  }
 
   // 清理过期数据
   async cleanup() {
@@ -309,39 +288,48 @@ class FrameCacheManager {
     }
   }
 
-  // 获取缓存统计信息
-  async getStats() {
+    // 清理特定视频的缓存
+  async clearVideoCache(videoId, frameType = null, store = null) {
     try {
-      const db = await this.init()
-      const tx = db.transaction(this.storeName, 'readonly')
-      const store = tx.objectStore(this.storeName)
+      const db = store ? null : await this.init()
+      const tx = store ? null : db.transaction(this.storeName, 'readwrite')
+      const actualStore = store || tx.objectStore(this.storeName)
       
-      return new Promise((resolve, reject) => {
-        const request = store.count()
-        request.onsuccess = () => {
-          resolve({
-            count: request.result,
-            maxAge: this.maxAge
-          })
-        }
-        request.onerror = () => reject(request.error)
-      })
+      if (frameType) {
+        // 清理指定类型的缓存
+        const index = actualStore.index('videoId_frameType')
+        return new Promise((resolve, reject) => {
+          const request = index.openCursor(IDBKeyRange.only([videoId, frameType]))
+          request.onsuccess = () => {
+            const cursor = request.result
+            if (cursor) {
+              cursor.delete()
+              cursor.continue()
+            } else {
+              resolve()
+            }
+          }
+          request.onerror = () => reject(request.error)
+        })
+      } else {
+        // 清理该视频所有缓存
+        const index = actualStore.index('videoId')
+        return new Promise((resolve, reject) => {
+          const request = index.openCursor(IDBKeyRange.only(videoId))
+          request.onsuccess = () => {
+            const cursor = request.result
+            if (cursor) {
+              cursor.delete()
+              cursor.continue()
+            } else {
+              resolve()
+            }
+          }
+          request.onerror = () => reject(request.error)
+        })
+      }
     } catch (error) {
-      console.error('获取统计失败:', error)
-      return { count: 0, maxAge: this.maxAge }
-    }
-  }
-
-  // 清空所有缓存
-  async clear() {
-    try {
-      const db = await this.init()
-      const tx = db.transaction(this.storeName, 'readwrite')
-      const store = tx.objectStore(this.storeName)
-      
-      return store.clear()
-    } catch (error) {
-      console.error('清空缓存失败:', error)
+      console.error('清理视频缓存失败:', error)
     }
   }
 }

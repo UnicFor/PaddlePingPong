@@ -341,7 +341,7 @@ watch(showPanel, (newVal) => {
             alt=""
             @load="handleImageLoad"
           />
-          <!-- TODO:使用Canvas替代div overlay -->
+          <!-- TODO 使用Canvas替代div overlay -->
           <div ref="skeletonOverlay" class="skeleton-overlay" style="position: absolute"></div>
           <div v-if="loading" class="loading-overlay">
             <div class="loading-text">加载中... {{ loadedCount }}/{{ totalFrames }}</div>

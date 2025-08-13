@@ -193,8 +193,5 @@ export function usePoseDataLoader() {
     loadFrames,
     loadPoseFrames,
     loadPoseData,
-    // 缓存管理方法
-    clearCache,
-    hasVideoCache: (videoId, type = null) => frameCache.hasVideoCache(videoId, type)
   }
 }
