@@ -1,7 +1,7 @@
 class FrameCacheManager {
   constructor() {
     this.dbName = 'PaddleFrameCacheDB'
-    this.version = 1
+    this.version = 2
     this.storeName = 'frames'
     this.db = null
     this.maxAge = 7 * 24 * 60 * 60 * 1000 // 7天过期
@@ -12,31 +12,42 @@ class FrameCacheManager {
     if (this.db) return this.db
 
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open(this.dbName, this.version)
+      // 创建IndexedDB数据库连接
+      const request = indexedDB.open(this.dbName, this.version)
+      
+      // 错误处理
+      request.onerror = () => {
+        console.error('IndexedDB初始化失败:', request.error)
+        reject(request.error)
+      }
 
-        request.onerror = () => {
-            console.error('IndexedDB初始化失败:', request.error)
-            reject(request.error)
-        }
+      // 成功处理
+      request.onsuccess = () => {
+        this.db = request.result
+        resolve(this.db)
+      }
 
-        request.onsuccess = () => {
-            this.db = request.result
-            resolve(this.db)
+      // 数据库升级
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result
+        if (e.oldVersion < 2) {
+          // 删除旧存储空间并重新创建
+          if (db.objectStoreNames.contains(this.storeName)) {
+            db.deleteObjectStore(this.storeName)
+          }
+          
+          const store = db.createObjectStore(this.storeName, { keyPath: 'id' })
+          store.createIndex('timestamp', 'timestamp', { unique: false })
+          store.createIndex('videoId', 'videoId', { unique: false })
+          store.createIndex('frameType', 'frameType', { unique: false })  // 帧类型索引
+          store.createIndex('videoId_frameType', ['videoId', 'frameType'], { unique: false })  // 复合索引
         }
-
-        // 数据库升级
-        request.onupgradeneeded = (e) => {
-            const db = e.target.result
-            if (!db.objectStoreNames.contains(this.storeName)) {
-                const store = db.createObjectStore(this.storeName, { keyPath: 'id' })
-                store.createIndex('timestamp', 'timestamp', { unique: false })
-                store.createIndex('videoId', 'videoId', { unique: false })
-            }
-        }
+      }
     })
   }
 
-  async set(id, data, metadata = {}) {
+  // 存储帧数据
+  async set(id, data, frameType = 'normal', metadata = {}) {
     try {
         const db = await this.init()
         const tx = db.transaction(this.storeName, 'readwrite')
@@ -47,6 +58,7 @@ class FrameCacheManager {
             data,
             timestamp: Date.now(),
             size: JSON.stringify(data).length,
+            frameType,
             ...metadata
         }
 
@@ -58,7 +70,7 @@ class FrameCacheManager {
   }
 
   // 获取帧数据
-  async get(id) {
+  async get(id, frameType = null) {
     try {
       const db = await this.init()
       const tx = db.transaction(this.storeName, 'readonly')
@@ -66,12 +78,14 @@ class FrameCacheManager {
       
       const result = await store.get(id)
       
-      // 检查是否过期
-      if (result && (Date.now() - result.timestamp) < this.maxAge) {
+      // 检查帧类型匹配和过期
+      if (result && 
+          (frameType === null || result.frameType === frameType) && 
+          (Date.now() - result.timestamp) < this.maxAge) {
         return result.data
       }
       
-      // 过期则删除
+      // 过期删除
       if (result) {
         this.delete(id)
       }
@@ -97,24 +111,30 @@ class FrameCacheManager {
   }
 
   // 批量存储帧数据
-  async setBatch(videoId, frames) {
+  async setBatch(videoId, frames, frameType = 'normal') {
     try {
       const db = await this.init()
       const tx = db.transaction(this.storeName, 'readwrite')
       const store = tx.objectStore(this.storeName)
       
+      // 清理该视频指定类型的旧缓存
+      await this.clearVideoCache(videoId, frameType, store)
+      
+      // 存储新数据
       const promises = frames.map((frameData, index) => {
-        const id = `${videoId}_frame_${index}`
+        const id = `${videoId}_${frameType}_frame_${index}`
         return store.put({
           id,
           data: frameData,
           videoId,
+          frameType,  // 新增帧类型
           frameIndex: index,
           timestamp: Date.now()
         })
       })
       
-      return Promise.all(promises)
+      await Promise.all(promises)
+      return true
     } catch (error) {
       console.error('批量存储失败:', error)
       throw error
@@ -122,31 +142,145 @@ class FrameCacheManager {
   }
 
   // 批量获取帧数据
-  async getBatch(videoId, count) {
+  async getBatch(videoId, frameType = 'normal') {
+    try {
+      const db = await this.init()
+      const tx = db.transaction(this.storeName, 'readonly')
+      const store = tx.objectStore(this.storeName)
+      const index = store.index('videoId_frameType')
+      
+      return new Promise((resolve, reject) => {
+        const request = index.getAll([videoId, frameType])
+        request.onsuccess = () => {
+          const results = request.result
+            .filter(r => (Date.now() - r.timestamp) < this.maxAge)
+            .sort((a, b) => a.frameIndex - b.frameIndex)
+            .map(r => r.data)
+          
+          resolve(results)
+        }
+        request.onerror = () => reject(request.error)
+      })
+    } catch (error) {
+      console.error('批量获取失败:', error)
+      return []
+    }
+  }
+
+  // 清理特定视频的缓存
+  async clearVideoCache(videoId, frameType = null, store = null) {
+    try {
+      const db = store ? null : await this.init()
+      const tx = store ? null : db.transaction(this.storeName, 'readwrite')
+      const actualStore = store || tx.objectStore(this.storeName)
+      
+      if (frameType) {
+        // 清理指定类型的缓存
+        const index = actualStore.index('videoId_frameType')
+        return new Promise((resolve, reject) => {
+          const request = index.openCursor(IDBKeyRange.only([videoId, frameType]))
+          request.onsuccess = () => {
+            const cursor = request.result
+            if (cursor) {
+              cursor.delete()
+              cursor.continue()
+            } else {
+              resolve()
+            }
+          }
+          request.onerror = () => reject(request.error)
+        })
+      } else {
+        // 清理该视频所有缓存
+        const index = actualStore.index('videoId')
+        return new Promise((resolve, reject) => {
+          const request = index.openCursor(IDBKeyRange.only(videoId))
+          request.onsuccess = () => {
+            const cursor = request.result
+            if (cursor) {
+              cursor.delete()
+              cursor.continue()
+            } else {
+              resolve()
+            }
+          }
+          request.onerror = () => reject(request.error)
+        })
+      }
+    } catch (error) {
+      console.error('清理视频缓存失败:', error)
+    }
+  }
+
+  // 检查某个视频指定类型是否有缓存
+  async hasVideoCache(videoId, frameType = null) {
     try {
       const db = await this.init()
       const tx = db.transaction(this.storeName, 'readonly')
       const store = tx.objectStore(this.storeName)
       
-      const frames = []
-      for (let i = 0; i < count; i++) {
-        const id = `${videoId}_frame_${i}`
-        const result = await store.get(id)
-        if (result && (Date.now() - result.timestamp) < this.maxAge) {
-          frames.push(result.data)
-        } else if (result) {
-          // 过期数据删除
-          this.delete(id)
-        }
+      if (frameType) {
+        const index = store.index('videoId_frameType')
+        return new Promise((resolve, reject) => {
+          const request = index.openCursor(IDBKeyRange.only([videoId, frameType]))
+          request.onsuccess = () => resolve(!!request.result)
+          request.onerror = () => reject(request.error)
+        })
+      } else {
+        const index = store.index('videoId')
+        return new Promise((resolve, reject) => {
+          const request = index.openCursor(IDBKeyRange.only(videoId))
+          request.onsuccess = () => resolve(!!request.result)
+          request.onerror = () => reject(request.error)
+        })
       }
-      
-      return frames.length === count ? frames : null
     } catch (error) {
-      console.error('批量获取失败:', error)
-      return null
+      console.error('检查视频缓存失败:', error)
+      return false
     }
   }
 
+  // 获取某个视频指定类型的所有缓存
+  async getVideoFrames(videoId, frameType = null) {
+    try {
+      const db = await this.init()
+      const tx = db.transaction(this.storeName, 'readonly')
+      const store = tx.objectStore(this.storeName)
+      
+      if (frameType) {
+        const index = store.index('videoId_frameType')
+        return new Promise((resolve, reject) => {
+          const request = index.getAll([videoId, frameType])
+          request.onsuccess = () => {
+            const results = request.result
+              .filter(r => (Date.now() - r.timestamp) < this.maxAge)
+              .sort((a, b) => a.frameIndex - b.frameIndex)
+              .map(r => r.data)
+            resolve(results)
+          }
+          request.onerror = () => reject(request.error)
+        })
+      } else {
+        const index = store.index('videoId')
+        return new Promise((resolve, reject) => {
+          const request = index.getAll(videoId)
+          request.onsuccess = () => {
+            const results = request.result
+              .filter(r => (Date.now() - r.timestamp) < this.maxAge)
+              .sort((a, b) => a.frameIndex - b.frameIndex)
+              .map(r => r.data)
+            resolve(results)
+          }
+          request.onerror = () => reject(request.error)
+        })
+      }
+    } catch (error) {
+      console.error('获取视频帧失败:', error)
+      return []
+    }
+  }
+
+  // 清理过期数据
   async cleanup() {
     try {
       const db = await this.init()
@@ -175,6 +309,7 @@ class FrameCacheManager {
     }
   }
 
+  // 获取缓存统计信息
   async getStats() {
     try {
       const db = await this.init()
@@ -207,54 +342,6 @@ class FrameCacheManager {
       return store.clear()
     } catch (error) {
       console.error('清空缓存失败:', error)
-    }
-  }
-
-  // 检查某个视频是否有缓存
-    async hasVideoCache(videoId) {
-    try {
-        const db = await this.init()
-        const tx = db.transaction(this.storeName, 'readonly')
-        const store = tx.objectStore(this.storeName)
-        const index = store.index('videoId')
-        
-        return new Promise((resolve, reject) => {
-            const request = index.openCursor(IDBKeyRange.only(videoId))
-            request.onsuccess = () => {
-            const cursor = request.result
-            resolve(!!cursor) // 只要找到第一条记录就返回true
-            }
-            request.onerror = () => reject(request.error)
-        })
-    } catch (error) {
-        console.error('检查视频缓存失败:', error)
-        return false
-    }
-    }
-
-  // 获取某个视频的所有缓存
-  async getVideoFrames(videoId) {
-    try {
-      const db = await this.init()
-      const tx = db.transaction(this.storeName, 'readonly')
-      const store = tx.objectStore(this.storeName)
-      const index = store.index('videoId')
-      
-      return new Promise((resolve, reject) => {
-        const request = index.getAll(videoId)
-        request.onsuccess = () => {
-          const results = request.result
-            .filter(r => (Date.now() - r.timestamp) < this.maxAge)
-            .sort((a, b) => a.frameIndex - b.frameIndex)
-            .map(r => r.data)
-          
-          resolve(results)
-        }
-        request.onerror = () => reject(request.error)
-      })
-    } catch (error) {
-      console.error('获取视频帧失败:', error)
-      return []
     }
   }
 }

@@ -253,12 +253,22 @@ watch(showPose, async (newVal) => {
   if (newVal && poseFrames.value.length === 0) {
     await loadPoseFrames(props.videoId)
   }
+  if (newVal) {
+    currentFrames.value = poseFrames.value
+  } else {
+    currentFrames.value = frames.value
+  }
   currentFrames.value = newVal ? poseFrames.value : frames.value
 })
 
-watch(showCoordinates, (newVal) => {
-  if (newVal && !poseData.value) loadPoseData(props.videoId)
-});
+watch([frames, poseFrames], () => {
+  // 当帧数据更新时，重新计算当前显示
+  if (showPose.value) {
+    currentFrames.value = poseFrames.value
+  } else {
+    currentFrames.value = frames.value
+  }
+})
 
 watch(showCoordinates, (newVal) => {
   if (newVal && !poseData.value) loadPoseData(props.videoId)

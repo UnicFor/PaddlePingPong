@@ -16,11 +16,11 @@ export function usePoseDataLoader() {
     loading.value = true
     try {
       // 先尝试从IndexedDB获取缓存
-      const cachedFrames = await frameCache.getBatch(videoId, 9999)
+      // 普通帧缓存
+      const cachedFrames = await frameCache.getBatch(videoId, 'normal')
       if (cachedFrames && cachedFrames.length > 0) {
         console.log(`从缓存加载 ${cachedFrames.length} 个普通帧`)
         frames.value = cachedFrames
-        loading.value = false
         return cachedFrames
       }
 
@@ -34,7 +34,7 @@ export function usePoseDataLoader() {
 
       // 存储到IndexedDB缓存
       if (frameData.length > 0) {
-        await frameCache.setBatch(videoId, frameData)
+        await frameCache.setBatch(videoId, frameData, 'normal')
         console.log(`缓存 ${frameData.length} 个普通帧到IndexedDB`)
       }
 
@@ -53,11 +53,11 @@ export function usePoseDataLoader() {
   const loadPoseFrames = async (videoId) => {
     loading.value = true
     try {
-      const cachedFrames = await frameCache.getBatch(videoId, 9999)
+      // 姿态帧缓存
+      const cachedFrames = await frameCache.getBatch(videoId, 'pose')
       if (cachedFrames && cachedFrames.length > 0) {
         console.log(`从缓存加载 ${cachedFrames.length} 个姿态帧`)
         poseFrames.value = cachedFrames
-        loading.value = false
         return cachedFrames
       }
 
@@ -69,7 +69,7 @@ export function usePoseDataLoader() {
       const frameData = data?.frames || []
 
       if (frameData.length > 0) {
-        await frameCache.setBatch(videoId, frameData)
+        await frameCache.setBatch(videoId, frameData, 'pose')
         console.log(`缓存 ${frameData.length} 个姿态帧到IndexedDB`)
       }
 
@@ -157,12 +157,18 @@ export function usePoseDataLoader() {
     }
   }
 
-    // 清理缓存
-  const clearCache = async (videoId = null) => {
+  // 清理缓存
+  const clearCache = async (videoId = null, frameType = null) => {
     if (videoId) {
-      // 清理特定视频的缓存
-      const videoFrames = await frameCache.getVideoFrames(videoId)
-      console.log(`清理视频 ${videoId} 的 ${videoFrames.length} 个缓存帧`)
+      if (frameType) {
+        // 清理指定视频指定类型的缓存
+        await frameCache.clearVideoCache(videoId, frameType)
+        console.log(`清理视频 ${videoId} 的 ${frameType} 类型缓存`)
+      } else {
+        // 清理该视频所有缓存
+        await frameCache.clearVideoCache(videoId)
+        console.log(`清理视频 ${videoId} 的所有缓存`)
+      }
     } else {
       // 清理所有缓存
       await frameCache.clear()
@@ -189,6 +195,6 @@ export function usePoseDataLoader() {
     loadPoseData,
     // 缓存管理方法
     clearCache,
-    hasVideoCache: (videoId) => frameCache.hasVideoCache(videoId)
+    hasVideoCache: (videoId, type = null) => frameCache.hasVideoCache(videoId, type)
   }
 }
