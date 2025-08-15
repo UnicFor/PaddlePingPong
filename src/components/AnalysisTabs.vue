@@ -22,8 +22,9 @@
 
         <!-- Markdown 查看器 -->
         <MarkdownRenderer
-          v-if="!loading && !error"
+          v-show="!loading && !error"
           :content="reportContent"
+          :cache-key="props.videoId"
           class="markdown-viewer"
         />
 
