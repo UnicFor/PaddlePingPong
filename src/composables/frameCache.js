@@ -179,27 +179,30 @@ class FrameCacheManager {
   }
 
   // 检查某个视频指定类型是否有缓存
-  async hasVideoCache(videoId, frameType = null) {
+  async hasVideoCache(videoId, frameType = 'normal') {
     try {
       const db = await this.init()
       const tx = db.transaction(this.storeName, 'readonly')
       const store = tx.objectStore(this.storeName)
+      this.getCacheStats(videoId, frameType).then(res => console.log(res, videoId))
+
+      // 使用复合索引检查指定类型的缓存
+      const index = store.index('videoId_frameType')
       
-      if (frameType) {
-        const index = store.index('videoId_frameType')
-        return new Promise((resolve, reject) => {
-          const request = index.openCursor(IDBKeyRange.only([videoId, frameType]))
-          request.onsuccess = () => resolve(!!request.result)
-          request.onerror = () => reject(request.error)
-        })
-      } else {
-        const index = store.index('videoId')
-        return new Promise((resolve, reject) => {
-          const request = index.openCursor(IDBKeyRange.only(videoId))
-          request.onsuccess = () => resolve(!!request.result)
-          request.onerror = () => reject(request.error)
-        })
-      }
+      return new Promise((resolve, reject) => {
+        const request = index.openCursor(IDBKeyRange.only([videoId, frameType]))
+        request.onsuccess = () => {
+          const cursor = request.result
+          if (cursor) {
+            // 检查是否过期
+            const isValid = (Date.now() - cursor.value.timestamp) < this.maxAge
+            resolve(isValid)
+          } else {
+            resolve(false)
+          }
+        }
+        request.onerror = () => reject(request.error)
+      })
     } catch (error) {
       console.error('检查视频缓存失败:', error)
       return false
@@ -207,7 +210,7 @@ class FrameCacheManager {
   }
 
   // 获取某个视频指定类型的所有缓存
-  async getVideoFrames(videoId, frameType = null) {
+  async getVideoFrames(videoId, frameType = 'normal') {
     try {
       const db = await this.init()
       const tx = db.transaction(this.storeName, 'readonly')
@@ -243,6 +246,32 @@ class FrameCacheManager {
     } catch (error) {
       console.error('获取视频帧失败:', error)
       return []
+    }
+  }
+
+// 获取缓存统计
+  async getCacheStats(videoId, frameType = 'normal') {
+    try {
+      const db = await this.init()
+      const tx = db.transaction(this.storeName, 'readonly')
+      const store = tx.objectStore(this.storeName)
+      const index = store.index('videoId_frameType')
+      
+      return new Promise((resolve, reject) => {
+        const request = index.getAll([videoId, frameType])
+        request.onsuccess = () => {
+          const results = request.result.filter(r => (Date.now() - r.timestamp) < this.maxAge)
+          resolve({
+            hasCache: results.length > 0,
+            count: results.length,
+            totalSize: results.reduce((sum, r) => sum + (r.size || 0), 0)
+          })
+        }
+        request.onerror = () => reject(request.error)
+      })
+    } catch (error) {
+      console.error('获取缓存统计失败:', error)
+      return { hasCache: false, count: 0, totalSize: 0 }
     }
   }
   

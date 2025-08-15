@@ -7,7 +7,7 @@ import { markRaw, defineAsyncComponent } from 'vue'
 
 // 使用 defineAsyncComponent 和 markRaw 进行组件懒加载
 const AnalysisHistory = markRaw(defineAsyncComponent(() =>
-  import('@/views/AnalysisHistory.vue')
+  import('@/views/AnalysisMain.vue')
 ))
 const TechnicalEvaluation = markRaw(defineAsyncComponent(() =>
   import('@/views/TechnicalEvaluation.vue')
@@ -20,13 +20,13 @@ const Analysis = markRaw(
 )
 
 const isMobile = ref(false)
-const activeTab = ref('analysis-history')
+const activeTab = ref('analysis-main')
 const showUserPanel = ref(false)
 const isSidebarCollapsed = ref(false)
 const componentsMap = shallowRef({
-  'analysis-history': AnalysisHistory,
+  'analysis-main': AnalysisHistory,
+  'analysis-view': Analysis,
   'technical-evaluation': TechnicalEvaluation,
-  'analysis-view': Analysis
 })
 
 const router = useRouter()

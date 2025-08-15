@@ -67,9 +67,9 @@ const hasHistory = computed(() => {
 
 // tabs数据
 const tabs = [
-  { id: 'analysis-view', label: '分析界面'},
-  { id: 'analysis-history', label: '分析历史'},
-  { id: 'technical-evaluation', label: '技术问答'},
+    { id: 'analysis-main', label: '功能首页'},
+    { id: 'analysis-view', label: '分析界面'},
+    { id: 'technical-evaluation', label: '技术问答'},
 ]
 
 // 页面初始化
@@ -281,7 +281,7 @@ const statusInfo = computed(() => {
 
 const handleTabClick = (tab) => {
     // 分析历史选项卡点击异常处理
-    if (tab.id === 'analysis-history' && !hasHistory.value) {
+    if (tab.id === 'analysis-main' && !hasHistory.value) {
         alert('暂无分析历史')
         return
     }

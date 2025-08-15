@@ -13,7 +13,6 @@
     "dompurify": "^3.2.6",
     "echarts": "^6.0.0",
     "element-plus": "^2.10.6",
-    "html2pdf.js": "^0.10.3",
     "jwt-decode": "^4.0.0",
     "marked": "^16.1.2",
     "papaparse": "^5.5.3",

@@ -31,13 +31,6 @@
         <!-- 下载按钮 -->
         <div class="download-section">
           <button
-            @click="downloadReport"
-            class="download-button"
-            :disabled="!reportContent"
-          >
-            下载pdf报告
-          </button>
-          <button
             @click="mddownloadReport"
             class="download-button"
             :disabled="!reportContent"
@@ -58,7 +51,6 @@
 
 <script setup>
 import {onMounted, ref, watch} from 'vue'
-import html2pdf from 'html2pdf.js'
 import AnalysisCharts from '@/components/AnalysisCharts.vue'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -125,96 +117,190 @@ const mddownloadReport = () => {
   link.click()
   document.body.removeChild(link)
 }
-
-const downloadReport = () => {
-  const tempDiv = document.createElement('div')
-
-  // 1. 设置容器样式（关键修复）
-  Object.assign(tempDiv.style, {
-  width: '180mm', // A4宽度(210mm) - 左右边距各15mm = 180mm
-  minHeight: '280mm', // 留出顶部底部边距空间
-  margin: '0 auto', // 水平居中
-  padding: '10mm', // 统一使用mm单位
-  background: 'white',
-  boxSizing: 'border-box', // 关键：确保padding不增加总宽度
-  visibility: 'visible',
-  position: 'static'
-  })
-
-  // 2. 添加完整样式
-  tempDiv.innerHTML = `
-  <div class="markdown-content" style="max-width: 100%; overflow-wrap: break-word;">
-    ${marked.parse(reportContent.value)}
-  </div>
-  <style>
-    /* 基础字体 */
-    body {
-      font: 12pt/1.5 'SimHei', SimSun, sans-serif;
-      color: #333;
-    }
-
-    /* 标题层次 */
-    h1 { font-size: 18pt; margin: 12pt 0; }
-    h2 { font-size: 16pt; margin: 10pt 0; }
-    h3 { font-size: 14pt; margin: 8pt 0; }
-
-    /* 表格处理 */
-    table {
-      width: 100% !important;
-      table-layout: fixed; /* 防止表格溢出 */
-      margin: 8pt 0;
-    }
-    td, th {
-      word-break: break-word; /* 强制换行 */
-      padding: 4pt;
-    }
-
-    /* 代码块 */
-    pre {
-      max-width: 100%;
-      white-space: pre-wrap; /* 允许换行 */
-      background: #f8f8f8;
-      padding: 8pt;
-      border-radius: 4pt;
-    }
-  </style>
-  `
-
-  document.body.appendChild(tempDiv)
-
-  // 3. 优化PDF配置
-  const options = {
-    margin: [10, 6, 10, 10], // 上右下左边距
-    filename: `${props.videoId}_analysis_report.pdf`,
-    image: {
-      type: 'jpeg',
-      quality: 0.98 // 提高图片质量
-    },
-    html2canvas: {
-      scale: 4, // 关键：提高分辨率
-      useCORS: true,
-      letterRendering: true, // 启用字体抗锯齿
-      logging: true // 调试时开启
-    },
-    jsPDF: {
-      unit: 'mm',
-      format: 'a4',
-      orientation: 'portrait',
-      hotfixes: ['px_scaling'] // 修复像素缩放问题
-    }
-  }
-
-  // 4. 添加渲染延迟
-  setTimeout(() => {
-    html2pdf()
-      .set(options)
-      .from(tempDiv)
-      .save()
-      .finally(() => {
-        document.body.removeChild(tempDiv)
-      })
-  }, 800) // 确保DOM渲染完成
-}
 </script>
 
-<style scoped src="@/assets/css/analysis-tab.css"></style>
+<style scoped>
+.analysis-tabs {
+  background: white;
+  border-radius: 10px;
+  min-height: 60vh;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.tab-nav {
+  display: flex;
+  border-bottom: 2px solid #f1f3f5;
+  padding: 0 20px;
+}
+
+.tab-nav button {
+  flex: 1;
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-width: 110px;
+  padding: 16px 20px;
+  border: none;
+  background: none;
+  color: #95a5a6;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color 0.3s ease,
+    background 0.3s ease;
+  position: relative;
+}
+
+.tab-nav button.active {
+  color: #2c3e50;
+}
+
+.tab-nav button.active::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: #2c3e50;
+  border-radius: 2px;
+}
+
+.tab-content {
+  padding: 25px;
+}
+
+.report-section {
+  animation: fadeIn 0.4s ease forwards;
+}
+
+.chart-placeholder {
+  height: 400px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 2px dashed #eceff1;
+  margin-bottom: 25px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.action-buttons button {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  background: #2c3e50;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    background 0.3s ease;
+}
+
+.action-buttons button:hover {
+  background: #34495e;
+  transform: translateY(-2px);
+}
+
+.action-buttons button:active {
+  transform: translateY(0);
+}
+
+.event-list {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #f1f3f5;
+}
+
+.event-item {
+  padding: 16px;
+  background: white;
+  border-bottom: 1px solid #f8f9fa;
+  transition: background 0.2s ease;
+}
+
+.event-item:hover {
+  background: #f8f9fa;
+}
+
+.event-time {
+  color: #7f8c8d;
+  font-size: 13px;
+  font-family: monospace;
+}
+
+.event-desc {
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+.loading {
+  padding: 20px;
+  color: #666;
+  text-align: center;
+}
+
+.error {
+  color: #ff4444;
+  padding: 15px;
+  background: #ffeeee;
+  border-radius: 4px;
+  margin: 10px;
+}
+
+.markdown-viewer {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.download-section {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.download-button {
+  background-color: #2c3e50;
+  margin: 0 10px 0 10px;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
+}
+
+.download-button:hover {
+  background-color: #273646;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .analysis-tabs {
+    border-radius: 6px;
+  }
+  .tab-nav {
+    padding: 0;
+  }
+}
+</style>
