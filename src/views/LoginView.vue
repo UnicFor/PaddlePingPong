@@ -132,7 +132,8 @@ const handleSubmit = async () => {
     <div class="third-login">
       <div class="divider">或使用以下方式登录</div>
       <button class="wechat-login">
-        <img src="@/assets/wechat-logo.png" alt="微信登录">
+        <img src="@/assets/picture/wechat-logo.png" alt="微信登录">
+
         微信扫码登录
       </button>
     </div>

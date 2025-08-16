@@ -298,7 +298,7 @@ const handleTabClick = (tab) => {
             class="expand-btn"
             @click="$emit('toggle-collapse')"
         >
-            <img src="@/assets/layout_left_bar_open_icon.png" alt="打开侧栏" />
+            <img src="@/assets/picture/layout_left_bar_open_icon.png" alt="打开侧栏" />
         </button>
     </transition>
     <nav class="user-sidebar" :class="{'collapsed': isCollapsed}">
@@ -307,7 +307,7 @@ const handleTabClick = (tab) => {
             <logo />
         </h3>
         <button class="collapse-btn" @click="$emit('toggle-collapse')">
-            <img src="@/assets/layout_left_bar_close_icon.png" alt="关闭侧栏">
+            <img src="@/assets/picture/layout_left_bar_close_icon.png" alt="关闭侧栏">
         </button>
         <div class="sidebar-header">
             <input
@@ -392,7 +392,7 @@ const handleTabClick = (tab) => {
             @click="emit('toggle-user-panel')"
         >
         <div class="user-avatar">
-            <img src="@/assets/default-avatar.png" alt="用户" />
+            <img src="@/assets/picture/default-avatar.png" alt="用户" />
         </div>
             <span class="username">{{ authStore.userInfo?.username ?? '加载中...' }}</span>
         </div>

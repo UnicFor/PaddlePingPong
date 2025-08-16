@@ -56,7 +56,7 @@ const handleLogout = async () => {
           <!-- 用户信息 -->
           <div class="user-header">
             <div class="avatar">
-              <img src="@/assets/default-avatar.png" alt="avatar">
+              <img src="@/assets/picture/default-avatar.png" alt="avatar">
             </div>
             <div class="user-meta">
               <h3>{{ authStore.userInfo?.username ?? '加载中...' }}</h3>

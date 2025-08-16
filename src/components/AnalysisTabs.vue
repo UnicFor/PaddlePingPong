@@ -51,7 +51,7 @@
 
 <script setup>
 import {onMounted, ref, watch} from 'vue'
-import AnalysisCharts from '@/components/AnalysisCharts.vue'
+import AnalysisCharts from '@/components/Charts/AnalysisCharts.vue'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import { useAuthStore } from '@/stores/auth'
 import {marked} from "marked";
