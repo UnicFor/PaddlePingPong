@@ -1,14 +1,14 @@
 <script setup>
-import {onMounted, ref, watch} from 'vue'
+import {onMounted, computed, ref, watch} from 'vue'
 import AnalysisCharts from '@/components/Charts/AnalysisCharts.vue'
-import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
-import { useAuthStore } from '@/stores/auth'
+import ReportArea from '@/components/ReportArea.vue'
 import request from '@/utils/request'
 
-const auth = useAuthStore()
-
-const activeTab = ref('分析报告')
-const tabs = ref(['分析报告','可视化图表'])
+const activeTab = ref('report')
+const tabs = ref([
+  { key: 'report', label: '分析报告', component: ReportArea },
+  { key: 'charts', label: '可视化图表', component: AnalysisCharts }
+])
 const reportContent = ref('')
 const loading = ref(false)
 const error = ref(null)
@@ -20,25 +20,22 @@ const props = defineProps({
   }
 })
 
-onMounted(() => {
-  if (activeTab.value === '分析报告') {
-    fetchReport()
-  }
+// 需要缓存的组件名称
+const cachedComponents = ref(['AnalysisCharts'])
+
+// 当前动态组件
+const currentComponent = computed(() => {
+  const currentTab = tabs.value.find(tab => tab.key === activeTab.value)
+  return currentTab?.component || 'ReportArea'
 })
 
-watch(activeTab, (newTab) => {
-  if (newTab === '分析报告' && !reportContent.value) {
-    fetchReport()
-  }
-})
-
+// 获取报告数据
 const fetchReport = async () => {
   try {
     loading.value = true
     error.value = null
 
     const response = await request.get(`/api/report/${props.videoId}`)
-
     reportContent.value = response.data
 
   } catch (err) {
@@ -49,6 +46,7 @@ const fetchReport = async () => {
   }
 }
 
+// 下载报告
 const mddownloadReport = () => {
   const blob = new Blob([reportContent.value], { type: 'text/markdown' })
   const link = document.createElement('a')
@@ -58,6 +56,20 @@ const mddownloadReport = () => {
   link.click()
   document.body.removeChild(link)
 }
+
+// 监听标签切换
+watch(activeTab, (newTab) => {
+  if (newTab === 'report' && !reportContent.value) {
+    fetchReport()
+  }
+})
+
+// 组件挂载时加载报告
+onMounted(() => {
+  if (activeTab.value === 'report') {
+    fetchReport()
+  }
+})
 </script>
 
 <template>
@@ -65,48 +77,27 @@ const mddownloadReport = () => {
     <div class="tab-nav">
       <button
         v-for="tab in tabs"
-        :key="tab"
-        :class="{ active: activeTab === tab }"
-        @click="activeTab = tab"
+        :key="tab.key"
+        :class="{ active: activeTab === tab.key }"
+        @click="activeTab = tab.key"
       >
-        {{ tab }}
+        {{ tab.label }}
       </button>
     </div>
 
     <div class="tab-content">
-      <div v-if="activeTab === '分析报告'">
-        <!-- PDF 查看器 -->
-        <!-- 加载状态 -->
-        <div v-if="loading" class="loading">报告加载中...</div>
-
-        <!-- 错误提示 -->
-        <div v-if="error" class="error">{{ error }}</div>
-
-        <!-- Markdown 查看器 -->
-        <MarkdownRenderer
-          v-show="!loading && !error"
-          :content="reportContent"
-          :cache-key="props.videoId"
-          class="markdown-viewer"
-        />
-
-        <!-- 下载按钮 -->
-        <div class="download-section">
-          <button
-            @click="mddownloadReport"
-            class="download-button"
-            :disabled="!reportContent"
-          >
-            下载md报告
-          </button>
-        </div>
-      </div>
-
-      <div v-if="activeTab === '可视化图表'">
-        <AnalysisCharts
+      <keep-alive :include="cachedComponents">
+        <component 
+          :is="currentComponent" 
           :video-id="videoId"
+          :content="reportContent"
+          :loading="loading"
+          :error="error"
+          :cache-key="videoId"
+          @download="mddownloadReport"
+          @retry="fetchReport"
         />
-      </div>
+      </keep-alive>
     </div>
   </div>
 </template>
@@ -137,9 +128,7 @@ const mddownloadReport = () => {
   font-size: 15px;
   font-weight: 500;
   cursor: pointer;
-  transition:
-    color 0.3s ease,
-    background 0.3s ease;
+  transition: all 0.3s ease;
   position: relative;
 }
 
@@ -162,118 +151,9 @@ const mddownloadReport = () => {
   padding: 25px;
 }
 
-.report-section {
-  animation: fadeIn 0.4s ease forwards;
-}
-
-.chart-placeholder {
-  height: 400px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 2px dashed #eceff1;
-  margin-bottom: 25px;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 15px;
-  margin-top: 25px;
-}
-
-.action-buttons button {
-  flex: 1;
-  padding: 14px;
-  border: none;
-  border-radius: 8px;
-  background: #2c3e50;
-  color: white;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    background 0.3s ease;
-}
-
-.action-buttons button:hover {
-  background: #34495e;
-  transform: translateY(-2px);
-}
-
-.action-buttons button:active {
-  transform: translateY(0);
-}
-
-.event-list {
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #f1f3f5;
-}
-
-.event-item {
-  padding: 16px;
-  background: white;
-  border-bottom: 1px solid #f8f9fa;
-  transition: background 0.2s ease;
-}
-
-.event-item:hover {
-  background: #f8f9fa;
-}
-
-.event-time {
-  color: #7f8c8d;
-  font-size: 13px;
-  font-family: monospace;
-}
-
-.event-desc {
-  color: #2c3e50;
-  font-size: 14px;
-}
-
-.loading {
-  padding: 20px;
-  color: #666;
-  text-align: center;
-}
-
-.error {
-  color: #ff4444;
-  padding: 15px;
-  background: #ffeeee;
-  border-radius: 4px;
-  margin: 10px;
-}
-
-.markdown-viewer {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.download-section {
-  text-align: center;
-  margin-top: 20px;
-}
-
-.download-button {
-  background-color: #2c3e50;
-  margin: 0 10px 0 10px;
-  color: white;
-  padding: 12px 24px;
-  border: none;
-  border-radius: 14px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: background-color 0.3s;
-}
-
-.download-button:hover {
-  background-color: #273646;
+/* 动态组件动画 */
+.tab-content > * {
+  animation: fadeIn 0.3s ease forwards;
 }
 
 @keyframes fadeIn {
