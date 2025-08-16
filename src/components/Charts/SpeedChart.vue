@@ -1,7 +1,7 @@
 <script setup>
 import * as echarts from 'echarts';
 import { onMounted, onUnmounted, ref, watch, computed } from 'vue';
-import { processFittingData, polynomialFit } from '@/utils/dataFitting.js';
+import { processFittingData } from '@/utils/dataFitting.js';
 
 const props = defineProps({
 	data: {
@@ -27,6 +27,11 @@ const debounce = (func, delay) => {
 		}, delay)
 	}
 }
+
+const debounceResize = debounce(() => {
+	chartInstance?.resize({ animation: { duration: 400 } })
+}, 300)
+
 
 // 处理所有数据
 const processedData = computed(() => 
@@ -222,16 +227,6 @@ const initChart = () => {
 
 	chartInstance.setOption(option);
 };
-
-const debounceResize = debounce(() => {
-	chartInstance?.resize({ animation: { duration: 300 } })
-}, 300)
-
-const debouncedInitChart = debounce(() => {
-	if (chartInstance && processedData.value) {
-		initChart()
-	}
-}, 300)
 
 onMounted(() => {
 	initChart();

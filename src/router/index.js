@@ -5,7 +5,7 @@ const routes = [
   {
     path: '/',
     name: 'Home',
-    component: () => import('@/views/WelcomeView.vue') // 直接动态导入
+    component: () => import('@/views/WelcomeView.vue')
   },
   {
     path: '/login',
@@ -15,12 +15,12 @@ const routes = [
   {
     path: '/register',
     name: 'Register',
-    component: () => import('@/views/RegisterView.vue')
+    component: () => import('@/views/Login/RegisterView.vue')
   },
   {
     path: '/forgot-password',
     name: 'Change-password',
-    component: () => import('@/views/ChangePasswordView.vue')
+    component: () => import('@/views/Login/ChangePasswordView.vue')
   },
   {
     path: '/main',

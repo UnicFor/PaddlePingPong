@@ -184,7 +184,6 @@ class FrameCacheManager {
       const db = await this.init()
       const tx = db.transaction(this.storeName, 'readonly')
       const store = tx.objectStore(this.storeName)
-      this.getCacheStats(videoId, frameType).then(res => console.log(res, videoId))
 
       // 使用复合索引检查指定类型的缓存
       const index = store.index('videoId_frameType')

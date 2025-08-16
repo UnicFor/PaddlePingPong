@@ -3,7 +3,8 @@ import FramePanel from '@/components/FramePanel.vue'
 import VideoComparator from "@/components/VideoComparator.vue";
 import AnalysisTabs from '@/components/AnalysisTabs.vue'
 
-import axios from 'axios'
+import request from '@/utils/request';
+
 import { computed, ref, watch } from 'vue'
 import { useHistoryStore } from '@/stores/history.js'
 import { useAuthStore } from '@/stores/auth'
@@ -31,12 +32,7 @@ const formattedTime = computed(() =>
 const fetchVideoUrls = async (videoId) => {
   try {
     loading.value = true
-    const token = auth.token
-    const response = await axios.get(`/api/video/${videoId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    })
+    const response = await request.get(`/api/video/${videoId}`)
 
     if (response.data.success) {
       originalUrl.value = response.data.data.original

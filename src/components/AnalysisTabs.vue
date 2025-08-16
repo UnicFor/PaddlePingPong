@@ -1,3 +1,65 @@
+<script setup>
+import {onMounted, ref, watch} from 'vue'
+import AnalysisCharts from '@/components/Charts/AnalysisCharts.vue'
+import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
+import { useAuthStore } from '@/stores/auth'
+import request from '@/utils/request'
+
+const auth = useAuthStore()
+
+const activeTab = ref('分析报告')
+const tabs = ref(['分析报告','可视化图表'])
+const reportContent = ref('')
+const loading = ref(false)
+const error = ref(null)
+
+const props = defineProps({
+  videoId: {
+    type: String,
+    required: true
+  }
+})
+
+onMounted(() => {
+  if (activeTab.value === '分析报告') {
+    fetchReport()
+  }
+})
+
+watch(activeTab, (newTab) => {
+  if (newTab === '分析报告' && !reportContent.value) {
+    fetchReport()
+  }
+})
+
+const fetchReport = async () => {
+  try {
+    loading.value = true
+    error.value = null
+
+    const response = await request.get(`/api/report/${props.videoId}`)
+
+    reportContent.value = response.data
+
+  } catch (err) {
+    error.value = err.message || '报告加载失败，请稍后重试'
+    console.error('加载报告失败:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+const mddownloadReport = () => {
+  const blob = new Blob([reportContent.value], { type: 'text/markdown' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = `${props.videoId}_analysis_report.md`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+</script>
+
 <template>
   <div class="analysis-tabs">
     <div class="tab-nav">
@@ -48,76 +110,6 @@
     </div>
   </div>
 </template>
-
-<script setup>
-import {onMounted, ref, watch} from 'vue'
-import AnalysisCharts from '@/components/Charts/AnalysisCharts.vue'
-import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
-import { useAuthStore } from '@/stores/auth'
-import {marked} from "marked";
-
-const auth = useAuthStore()
-
-const activeTab = ref('分析报告')
-const tabs = ref(['分析报告','可视化图表'])
-const reportContent = ref('')
-const loading = ref(false)
-const error = ref(null)
-
-const props = defineProps({
-  videoId: {
-    type: String,
-    required: true
-  }
-})
-
-onMounted(() => {
-  if (activeTab.value === '分析报告') {
-    fetchReport()
-  }
-})
-
-watch(activeTab, (newTab) => {
-  if (newTab === '分析报告' && !reportContent.value) {
-    fetchReport()
-  }
-})
-
-const fetchReport = async () => {
-  try {
-    loading.value = true
-    error.value = null
-
-    const response = await fetch(`/api/report/${props.videoId}`, {
-      headers: {
-        Authorization: `Bearer ${auth.token}`
-      }
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || '获取报告失败')
-    }
-
-    reportContent.value = await response.text()
-  } catch (err) {
-    error.value = err.message || '报告加载失败，请稍后重试'
-    console.error('加载报告失败:', err)
-  } finally {
-    loading.value = false
-  }
-}
-
-const mddownloadReport = () => {
-  const blob = new Blob([reportContent.value], { type: 'text/markdown' })
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  link.download = `${props.videoId}_analysis_report.md`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-}
-</script>
 
 <style scoped>
 .analysis-tabs {

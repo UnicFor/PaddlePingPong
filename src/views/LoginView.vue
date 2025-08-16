@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import axios from 'axios'
+import request from '@/utils/request'
 
 import logo from "@/components/Logo.vue";
 
@@ -15,7 +15,7 @@ const countdown = ref(0)
 
 const getSmsCode = async () => {
   try {
-    const response = await axios.post('/api/send_sms', { phone: phone.value })
+    const response = await request.post('/api/send_sms', { phone: phone.value })
     if (response.data.success) {
       countdown.value = 60
       const timer = setInterval(() => {
@@ -41,18 +41,24 @@ const handleSubmit = async () => {
       payload.sms_code = smsCode.value
     }
 
-    const response = await axios.post('/api/password_login', payload)
+    console.log('登录请求参数:', payload)
+    console.log('登录请求URL:', '/api/password_login')
+    
+    const response = await request.post('/api/password_login', payload)
+    console.log('登录响应:', response.data)
+    
     if (response.data.success) {
-      // 保存登录状态
       const authStore = useAuthStore()
       await authStore.login(response.data.token)
-
-      await router.push('/main')
+      
+      const redirect = router.currentRoute.value.query.redirect
+      await router.push(redirect || '/main')
     } else {
-      alert(response.data.message)
+      alert(response.data.message || '登录失败')
     }
   } catch (error) {
-    alert(error.response?.data.message || '登录失败')
+    console.error('登录错误:', error)
+    alert(error.response?.data?.message || '登录失败')
   }
 }
 

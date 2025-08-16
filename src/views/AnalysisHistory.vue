@@ -10,6 +10,7 @@ const emit = defineEmits(['check'])
 onMounted(() => {
   historyStore.fetchHistory()
   historyStore.startAutoRefresh()
+  console.log('API Base URL:', import.meta.env.VITE_API_BASE_URL)
 })
 
 // 清理定时器防止内存泄漏

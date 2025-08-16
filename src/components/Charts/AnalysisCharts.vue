@@ -1,13 +1,12 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import Papa from 'papaparse';
-import axios from 'axios';
+import request from '@/utils/request';
 
 import CombinedChart from "@/components/Charts/SpeedChart.vue";
 import ScatterChart from "@/components/Charts/ScatterChart.vue";
 import TimelineChart from "@/components/Charts/TimelineChart.vue";
 
-import { useAuthStore } from '@/stores/auth';
 
 const props = defineProps({
   videoId: {
@@ -19,30 +18,10 @@ const props = defineProps({
 // 开发者模式标志
 const isDevMode = import.meta.env.DEV;
 
-const auth = useAuthStore();
 const stats = ref([]);
 const processedData = ref(null);
 const frameDataList = ref([]);
 const currentFrameIndex = ref(0);
-
-const setupAxiosInterceptor = () => {
-  axios.interceptors.request.use(config => {
-    const token = localStorage.getItem('jwt_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${auth.token}`;
-    }
-    return config;
-  }, error => {
-    return Promise.reject(error);
-  });
-
-  axios.interceptors.response.use(response => response, error => {
-    if (error.response?.status === 401) {
-      // router.push('/login');
-    }
-    return Promise.reject(error);
-  });
-};
 
 const loadCSVData = async () => {
   if (isDevMode) {
@@ -71,14 +50,12 @@ const loadCSVData = async () => {
   } else {
     // 生产模式
     try {
-      const response = await fetch(`/api/ball-data/${props.videoId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('jwt_token')}`,
-          'Content-Type': 'text/csv'
-        }
+      const response = await request.get(`/api/ball-data/${props.videoId}`, {
+        responseType: 'text'
       });
-      const csvText = await response.text();
       
+      const csvText = response.data;
+
       return new Promise((resolve) => {
         Papa.parse(csvText, {
           header: true,
@@ -160,7 +137,7 @@ const processData = (rawData) => {
   const yRange = Math.max(...validPoints.map(p => p[1])) - Math.min(...validPoints.map(p => p[1]));
   
   // 判断拍摄方向
-  let shootingDirection = '斜角拍摄(误差较大)';
+  let shootingDirection = '斜角拍摄';
   const rangeRatio = xRange / yRange;
   
   if (rangeRatio > 1.5) {
@@ -214,7 +191,6 @@ const handleFrameChange = (index) => {
 
 const initData = async () => {
   try {
-    setupAxiosInterceptor();
     const [csvData] = await Promise.all([loadCSVData()]);
     
     processedData.value = processData(csvData);

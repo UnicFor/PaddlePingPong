@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import request from '@/utils/request'
 
 export const useAuthStore = defineStore('auth', () => {
-  // 从localStorage初始化登录状态
+    // 统一使用 'jwt' 作为token键名
     const isLoggedIn = ref(process.env.NODE_ENV === 'development' || !!localStorage.getItem('jwt'))
     const token = ref(process.env.NODE_ENV === 'development' ? 'dev_token' : localStorage.getItem('jwt') || null)
     const userInfo = ref(process.env.NODE_ENV === 'development' ? { name: '开发用户', id: 'dev_user' } : null)
@@ -36,44 +37,32 @@ export const useAuthStore = defineStore('auth', () => {
     userInfo.value = null
   }
 
+  // 获取用户信息方法
+  const fetchUserInfo = async () => {
+    try {
+      const response = await request.get('/api/user-info')
+      const { data } = response.data
+      
+      const registrationDate = new Date(data.registration_date)
+      const today = new Date()
+      const diffTime = today - registrationDate
+      data.days = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+      userInfo.value = data
+    } catch (error) {
+      console.error('用户信息获取失败:', error)
+      logout()
+    }
+  }
+
   // 初始化时尝试从本地存储恢复状态
   const initialize = () => {
-    if (process.env.NODE_ENV !== 'development') {
+    if (import.meta.env.DEV) {
       const savedToken = localStorage.getItem('jwt')
       if (savedToken) {
         token.value = savedToken
         isLoggedIn.value = true
       }
-    }
-  }
-
-  // 获取用户信息方法
-  const fetchUserInfo = async () => {
-    try {
-      const response = await fetch('/api/user-info', {
-        headers: {
-          Authorization: `Bearer ${token.value}`
-        }
-      })
-
-      if (!response.ok) {
-        console.error('请求失败，状态码:', response.status);
-        logout();
-        return;
-      }
-      // 请求成功时解析数据
-      const { data } = await response.json();
-
-      const registrationDate = new Date(data.registration_date);
-      const today = new Date();
-      const diffTime = today - registrationDate;
-      data.days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-      userInfo.value = data;
-    } catch (error) {
-      // 捕获网络错误或其他异常
-      console.error('用户信息获取失败:', error)
-      logout()
     }
   }
 
