@@ -87,12 +87,12 @@ def upload_video():
             db.session.commit()
 
             # 异步任务处理
-            # process_video_async(
-            #     input_path=save_path,
-            #     filename=os.path.basename(save_path),
-            #     original_video_id=video_id,
-            #     user_id=user.user_id
-            # )
+            process_video_async(
+                input_path=save_path,
+                filename=os.path.basename(save_path),
+                original_video_id=video_id,
+                user_id=user.user_id
+            )
 
         except Exception as e:
             db.session.rollback()

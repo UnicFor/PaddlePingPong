@@ -198,8 +198,8 @@ def process_video_async(input_path, filename, original_video_id, user_id):
             return
         else:
             print(f"📄 开始生成报告: {filename}")
-            report = auto_generate_report(file_path, user_id, filename)
-            print(f"✅ 报告生成完成: {report}")
+            # report = auto_generate_report(file_path, user_id, filename)
+            # print(f"✅ 报告生成完成: {report}")
 
         # ================== 状态更新阶段 ==================
         try:
