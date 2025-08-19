@@ -1,7 +1,7 @@
 <script setup>
 import {onMounted, computed, ref, watch} from 'vue'
-import AnalysisCharts from '@/components/Charts/AnalysisCharts.vue'
-import ReportArea from '@/components/ReportArea.vue'
+import AnalysisCharts from '@/components/Analysis/AnalysisCharts.vue'
+import ReportArea from '@/components/Analysis/ReportArea.vue'
 import request from '@/utils/request'
 
 const activeTab = ref('report')

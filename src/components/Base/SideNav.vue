@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useHistoryStore } from '@/stores/history'
 import {useRouter} from 'vue-router'
 import axios from 'axios'
-import logo from '@/components/Logo.vue'
+import logo from '@/components/Base/Logo.vue'
 
 const props = defineProps({
     // 活动选项卡

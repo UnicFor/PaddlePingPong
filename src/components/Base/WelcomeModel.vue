@@ -1,5 +1,5 @@
 <script setup>
-import logo from "@/components/Logo.vue";
+import logo from "@/components/Base/Logo.vue";
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 

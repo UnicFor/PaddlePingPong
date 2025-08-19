@@ -1,6 +1,6 @@
 
 <script setup>
-import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
+import MarkdownRenderer from '@/components/Base/MarkdownRenderer.vue'
 
 const props = defineProps({
   content: {

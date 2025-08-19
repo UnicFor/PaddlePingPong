@@ -2,8 +2,8 @@
 import { shallowRef, ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useHistoryStore } from '@/stores/history.js'
 import { useRouter } from 'vue-router'
-import SideNav from '@/components/SideNav.vue'
-import AuthPanel from '@/components/UserPanel.vue'
+import SideNav from '@/components/Base/SideNav.vue'
+import AuthPanel from '@/components/Base/UserPanel.vue'
 import { markRaw, defineAsyncComponent } from 'vue'
 
 const historyStore = useHistoryStore()

@@ -1,7 +1,7 @@
 <script setup>
-import AnalysisHistory from '@/components/AnalysisHistory.vue'
-import ServerMonitor from '@/components/ServerMonitor.vue'
-import CacheMonitor from '@/components/CacheMonitor.vue'
+import AnalysisHistory from '@/components/Analysis/AnalysisHistory.vue'
+import ServerMonitor from '@/components/Base/ServerMonitor.vue'
+import CacheMonitor from '@/components/Base/CacheMonitor.vue'
 </script>
 
 <template>

@@ -1,6 +1,6 @@
 <script setup>
-import WelcomeModel from "@/components/WelcomeModel.vue";
-import Abstract from "@/components/Abstract.vue";
+import WelcomeModel from "@/components/Base/WelcomeModel.vue";
+import Abstract from "@/components/Base/Abstract.vue";
 </script>
 
 <template>

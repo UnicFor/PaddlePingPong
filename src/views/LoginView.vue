@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import request from '@/utils/request'
 
-import logo from "@/components/Logo.vue";
+import logo from "@/components/Base/Logo.vue";
 
 const router = useRouter()
 const loginType = ref('password')

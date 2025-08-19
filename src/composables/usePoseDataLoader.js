@@ -157,25 +157,6 @@ export function usePoseDataLoader() {
     }
   }
 
-  // 清理缓存
-  const clearCache = async (videoId = null, frameType = null) => {
-    if (videoId) {
-      if (frameType) {
-        // 清理指定视频指定类型的缓存
-        await frameCache.clearVideoCache(videoId, frameType)
-        console.log(`清理视频 ${videoId} 的 ${frameType} 类型缓存`)
-      } else {
-        // 清理该视频所有缓存
-        await frameCache.clearVideoCache(videoId)
-        console.log(`清理视频 ${videoId} 的所有缓存`)
-      }
-    } else {
-      // 清理所有缓存
-      await frameCache.clear()
-      console.log('清理所有缓存')
-    }
-  }
-
   // 辅助函数
   function ensure2DArray(arr) {
     if (!Array.isArray(arr)) return [];

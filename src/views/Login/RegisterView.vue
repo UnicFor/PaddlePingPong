@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import logo from "@/components/Logo.vue";
+import logo from "@/components/Base/Logo.vue";
 
 const router = useRouter()
 const phone = ref('')

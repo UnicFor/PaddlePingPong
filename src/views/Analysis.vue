@@ -1,7 +1,7 @@
 <script setup>
-import FramePanel from '@/components/FramePanel.vue'
-import VideoComparator from "@/components/VideoComparator.vue";
-import AnalysisTabs from '@/components/AnalysisTabs.vue'
+import FramePanel from '@/components/Video/FramePanel.vue'
+import VideoComparator from "@/components/Video/VideoComparator.vue";
+import AnalysisTabs from '@/components/Analysis/AnalysisTabs.vue'
 
 import request from '@/utils/request';
 
