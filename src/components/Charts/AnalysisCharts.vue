@@ -4,7 +4,7 @@ import Papa from 'papaparse';
 import request from '@/utils/request';
 
 import CombinedChart from "@/components/Charts/SpeedChart.vue";
-import ScatterChart from "@/components/Charts/ScatterChart.vue";
+import AccelerationChart from "@/components/Charts/AccelerationChart.vue";
 import TimelineChart from "@/components/Charts/TimelineChart.vue";
 
 
@@ -83,10 +83,25 @@ const processData = (rawData) => {
   const yData = [];
   const speedData = [];
   const validPoints = [];
-  const xyConnectedData = [];
 
-  // 遍历原始数据
-  rawData.forEach((row) => {
+  // 先计算平均速度（排除NaN值）
+  const validSpeeds = rawData
+    .map(row => row.Speed)
+    .filter(speed => !isNaN(speed));
+  
+  const avgSpeed = validSpeeds.length > 0 
+    ? validSpeeds.reduce((sum, speed) => sum + speed, 0) / validSpeeds.length 
+    : 0;
+
+  // 过滤异常帧：速度超过平均速度4倍的帧不记录
+  const filteredData = rawData.filter(row => {
+    const speed = row.Speed;
+    if (isNaN(speed)) return true;
+    return speed <= avgSpeed * 4;
+  });
+
+  // 遍历过滤后的数据
+  filteredData.forEach((row) => {
     frameData.push(Number(row.Frame));
 
     if (!isNaN(row.X) && !isNaN(row.Y)) {
@@ -107,18 +122,11 @@ const processData = (rawData) => {
     speedData.push(!isNaN(row.Speed) ? row.Speed : null);
   });
 
-  // 生成轨迹连接线数据：连接相邻的有效点
-  for (let i = 0; i < validPoints.length - 1; i++) {
-    xyConnectedData.push([validPoints[i][0], validPoints[i][1]]);
-    xyConnectedData.push([validPoints[i+1][0], validPoints[i+1][1]]);
-    xyConnectedData.push([null, null]);
-  }
-
-  // 计算统计信息
-  const validSpeeds = speedData.filter(s => s !== null);
-  const maxSpeed = validSpeeds.length > 0 ? Math.max(...validSpeeds) : 0;
-  const avgSpeed = validSpeeds.length > 0 
-    ? validSpeeds.reduce((a, b) => a + b, 0) / validSpeeds.length 
+  // 计算统计信息（使用过滤后的数据）
+  const filteredValidSpeeds = speedData.filter(s => s !== null);
+  const maxSpeed = filteredValidSpeeds.length > 0 ? Math.max(...filteredValidSpeeds) : 0;
+  const avgSpeedAfterFilter = filteredValidSpeeds.length > 0 
+    ? filteredValidSpeeds.reduce((a, b) => a + b, 0) / filteredValidSpeeds.length 
     : 0;
   
   // 有效坐标数
@@ -152,10 +160,9 @@ const processData = (rawData) => {
     yData,
     speedData,
     xyFrameSpeedData: validPoints,
-    xyConnectedData,
     stats: {
       maxSpeed: maxSpeed.toFixed(2),
-      avgSpeed: avgSpeed.toFixed(2),
+      avgSpeed: avgSpeedAfterFilter.toFixed(2),
       validCoords,
       totalFrames,
       detectionRate: detectionRate,
@@ -221,7 +228,7 @@ onUnmounted(() => {
 
       <div class="dashboard">
         <CombinedChart :data="processedData" />
-        <ScatterChart :data="processedData" />
+        <AccelerationChart :data="processedData" />
         <TimelineChart 
           :data="processedData" 
           :frame-data-list="frameDataList"

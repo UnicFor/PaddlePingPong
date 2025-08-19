@@ -1,12 +1,15 @@
 <script setup>
-import { shallowRef, ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { shallowRef, ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { useHistoryStore } from '@/stores/history.js'
 import { useRouter } from 'vue-router'
 import SideNav from '@/components/SideNav.vue'
 import AuthPanel from '@/components/UserPanel.vue'
 import { markRaw, defineAsyncComponent } from 'vue'
 
+const historyStore = useHistoryStore()
+
 // 使用 defineAsyncComponent 和 markRaw 进行组件懒加载
-const AnalysisHistory = markRaw(defineAsyncComponent(() =>
+const AnalysisMain = markRaw(defineAsyncComponent(() =>
   import('@/views/AnalysisMain.vue')
 ))
 const TechnicalEvaluation = markRaw(defineAsyncComponent(() =>
@@ -24,7 +27,7 @@ const activeTab = ref('analysis-main')
 const showUserPanel = ref(false)
 const isSidebarCollapsed = ref(false)
 const componentsMap = shallowRef({
-  'analysis-main': AnalysisHistory,
+  'analysis-main': AnalysisMain,
   'analysis-view': Analysis,
   'technical-evaluation': TechnicalEvaluation,
 })
@@ -71,6 +74,13 @@ function checkIsMobile() {
     isSidebarCollapsed.value = true
   }
 }
+
+watch(
+  () => historyStore.triggerCheck,
+  () => {
+    if (historyStore.currentAnalysisId) 
+      switchToAnalysisView()
+  })
 </script>
 
 <template>

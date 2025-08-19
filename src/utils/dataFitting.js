@@ -50,131 +50,98 @@ export const fillNullValues = (data) => {
 };
 
 /**
- * 高斯消元法解线性方程组
- * @param {Array} matrix - 系数矩阵
- * @param {Array} rhs - 右侧向量
- * @returns {Array} 解向量
+ * 移动平均平滑处理
+ * @param {Array} data - 原始数据数组
+ * @param {number} windowSize - 平滑窗口大小，默认5
+ * @returns {Array} 平滑后的数据
  */
-export const gaussianElimination = (matrix, rhs) => {
-	const n = matrix.length;
-	const augmented = matrix.map((row, i) => [...row, rhs[i]]);
-	
-	// 前向消元
-	for (let i = 0; i < n; i++) {
-		// 部分选主元：寻找当前列绝对值最大的行
-		let maxRow = i;
-		for (let k = i + 1; k < n; k++) {
-			if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) {
-				maxRow = k;
-			}
-		}
-		
-		// 交换当前行与主元行
-		[augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
-		
-		// 消去下方行的当前列元素
-		for (let k = i + 1; k < n; k++) {
-			const factor = augmented[k][i] / augmented[i][i];
-			for (let j = i; j <= n; j++) {
-				augmented[k][j] -= factor * augmented[i][j];
-			}
-		}
-	}
-	
-	// 回代求解
-	const solution = new Array(n);
-	for (let i = n - 1; i >= 0; i--) {
-		solution[i] = augmented[i][n];
-		for (let j = i + 1; j < n; j++) {
-			solution[i] -= augmented[i][j] * solution[j];
-		}
-		solution[i] /= augmented[i][i];
-	}
-	
-	return solution;
+export const smoothData = (data, windowSize = 5) => {
+  if (!data || data.length === 0) return [];
+  
+  const filledData = fillNullValues(data);
+  const result = [...filledData];
+  const halfWindow = Math.floor(windowSize / 2);
+  
+  for (let i = 0; i < filledData.length; i++) {
+    let sum = 0;
+    let count = 0;
+    
+    // 计算窗口内的平均值
+    for (let j = Math.max(0, i - halfWindow); j <= Math.min(filledData.length - 1, i + halfWindow); j++) {
+      if (filledData[j] !== null && !isNaN(filledData[j])) {
+        sum += filledData[j];
+        count++;
+      }
+    }
+    
+    result[i] = count > 0 ? sum / count : filledData[i];
+  }
+  
+  return result;
 };
 
 /**
- * 多项式曲线拟合
- * @param {Array} xData - x轴数据
- * @param {Array} yData - y轴数据
- * @param {number} degree - 多项式阶数，默认5
- * @returns {Array} 拟合后的数据
+ * 指数加权移动平均平滑
+ * @param {Array} data - 原始数据数组
+ * @param {number} alpha - 平滑系数(0-1)，默认0.3
+ * @returns {Array} 平滑后的数据
  */
-export const polynomialFit = (xData, yData, degree = 5) => {
-	if (!xData || !yData || xData.length < degree + 1) return yData;
-	
-	// 确保yData中没有null值
-	const cleanYData = fillNullValues(yData);
-	const n = xData.length;
-	const x = xData.map((_, i) => i); // 使用帧索引作为x值
-	
-	// 构建正规方程矩阵 (A^T * A) * coefficients = A^T * y
-	const matrix = [];
-	const rhs = [];
-	
-	// 计算矩阵元素：sum(x^(i+j)) 和 sum(x^i * y)
-	for (let k = 0; k <= degree; k++) {
-		const row = [];
-		for (let j = 0; j <= degree; j++) {
-			let sum = 0;
-			for (let i = 0; i < n; i++) {
-				sum += Math.pow(x[i], k + j);
-			}
-			row.push(sum);
-		}
-		matrix.push(row);
-		
-		let sum = 0;
-		for (let i = 0; i < n; i++) {
-			sum += cleanYData[i] * Math.pow(x[i], k);
-		}
-		rhs.push(sum);
-	}
-	
-	// 使用高斯消元法解线性方程组
-	const coefficients = gaussianElimination(matrix, rhs);
-	
-	// 生成拟合数据：计算每个x值对应的多项式值
-	return x.map(xi => {
-		let y = 0;
-		for (let i = 0; i <= degree; i++) {
-			y += coefficients[i] * Math.pow(xi, i);
-		}
-		return y;
-	});
+export const exponentialSmooth = (data, alpha = 0.3) => {
+  if (!data || data.length === 0) return [];
+  
+  const filledData = fillNullValues(data);
+  const result = [...filledData];
+  
+  if (filledData.length === 0) return result;
+  
+  result[0] = filledData[0]; // 第一个值保持不变
+  
+  for (let i = 1; i < filledData.length; i++) {
+    if (filledData[i] !== null && !isNaN(filledData[i])) {
+      result[i] = alpha * filledData[i] + (1 - alpha) * result[i - 1];
+    } else {
+      result[i] = result[i - 1]; // 缺失值用前一个平滑值填充
+    }
+  }
+  
+  return result;
 };
 
 /**
- * 批量数据拟合处理
- * @param {Object} data - 包含xData, yData, speedData, frameData的对象
- * @param {number} fitDegree - 拟合阶数
+ * 批量数据平滑处理（替代原来的拟合）
+ * @param {Object} data - 包含xData, yData, speedData的对象
+ * @param {string} method - 平滑方法：'movingAverage' | 'exponential'，默认'movingAverage'
+ * @param {number} param - 平滑参数（窗口大小或alpha值）
  * @returns {Object} 处理后的数据对象
  */
-export const processFittingData = (data, fitDegree = 4) => {
-	if (!data) return null;
-	
-	// 对所有数据序列进行null值填充
-	const xFilled = fillNullValues(data.xData);
-	const yFilled = fillNullValues(data.yData);
-	const speedFilled = fillNullValues(data.speedData);
-	
-	// 限制拟合阶数在合理范围内
-	const degree = Math.min(Math.max(fitDegree, 2), 6);
-	
-	return {
-		...data,
-		xOriginal: xFilled,
-		yOriginal: yFilled,
-		speedFitted: polynomialFit(data.frameData, speedFilled, degree),
-		speedOriginal: speedFilled
-	};
+export const processSmoothingData = (data, method = 'movingAverage', param = 5) => {
+  if (!data) return null;
+  
+  // 对所有数据序列进行null值填充
+  const xFilled = fillNullValues(data.xData);
+  const yFilled = fillNullValues(data.yData);
+  const speedFilled = fillNullValues(data.speedData);
+  
+  let speedSmoothed;
+  if (method === 'exponential') {
+    speedSmoothed = exponentialSmooth(speedFilled, param);
+  } else {
+    speedSmoothed = smoothData(speedFilled, param);
+  }
+  
+  return {
+    ...data,
+    xOriginal: xFilled,
+    yOriginal: yFilled,
+    speedSmoothed: speedSmoothed,
+    speedOriginal: speedFilled
+  };
 };
 
-// 默认导出所有工具函数
+// 修改默认导出
 export default {
-	fillNullValues,
-	gaussianElimination,
-	polynomialFit,
-	processFittingData
+  fillNullValues,
+  smoothData,
+  exponentialSmooth,
+  processSmoothingData
 };

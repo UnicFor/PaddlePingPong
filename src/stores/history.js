@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import {computed, ref, watch} from 'vue'
+import { computed, ref } from 'vue'
 import { useAuthStore } from './auth'
 import frameCache from '@/composables/frameCache.js'
 
@@ -52,6 +52,8 @@ export const useHistoryStore = defineStore('history', () => {
     const auth = useAuthStore()
     const historyItems = ref([])
     const currentAnalysisId = ref(null)
+    const triggerCheck = ref(0)
+
     const isLoading = ref(false)
     const error = ref(null)
 
@@ -64,6 +66,7 @@ export const useHistoryStore = defineStore('history', () => {
 
     const setCurrentAnalysisId = (id) => {
         currentAnalysisId.value = id
+        triggerCheck.value = Date.now()
     }
 
     const fetchHistory = async () => {
@@ -298,6 +301,7 @@ export const useHistoryStore = defineStore('history', () => {
         isLoading,
         error,
         setCurrentAnalysisId,
+        triggerCheck,
         fetchHistory,
         deleteItem,
         cacheItem,

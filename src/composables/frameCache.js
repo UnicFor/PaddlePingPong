@@ -3,19 +3,16 @@
 1. 普通帧缓存：按视频ID和帧类型（normal）存储
 2. 姿态帧缓存：按视频ID和帧类型（pose）存储
 3. 缓存过期：默认7天过期，可配置
-
-TODO
-1. 配置LRU缓存策略
-2. 配额管理
 */
 
 class FrameCacheManager {
   constructor() {
     this.dbName = 'PaddleFrameCacheDB'
-    this.version = 2
+    this.version = 3
     this.storeName = 'frames'
     this.db = null
     this.maxAge = 7 * 24 * 60 * 60 * 1000 // 7天过期
+    this.maxCacheSize = 1024 * 1024 * 500 // 默认100MB
   }
 
   // 初始化数据库
@@ -41,7 +38,7 @@ class FrameCacheManager {
       // 数据库升级
       request.onupgradeneeded = (e) => {
         const db = e.target.result
-        if (e.oldVersion < 2) {
+        if (e.oldVersion < 3) {
           // 删除旧存储空间并重新创建
           if (db.objectStoreNames.contains(this.storeName)) {
             db.deleteObjectStore(this.storeName)
@@ -52,10 +49,113 @@ class FrameCacheManager {
           store.createIndex('videoId', 'videoId', { unique: false })
           store.createIndex('frameType', 'frameType', { unique: false })  // 帧类型索引
           store.createIndex('videoId_frameType', ['videoId', 'frameType'], { unique: false })  // 复合索引
+          store.createIndex('size', 'size', { unique: false })  // 缓存量索引
         }
       }
     })
   }
+
+  // LRU 缓存管理
+  async enforceCacheLimit(store, newSize){
+    const storeSize = await this.getTotalCacheSize(store)
+
+    if(storeSize + newSize > this.maxCacheSize){
+      // 清理旧数据，保证缓存大小不超过最大限制
+      await this.clearOldData(store, storeSize + newSize - this.maxCacheSize)
+    }
+  }
+
+  setMaxCacheSize(sizeInMB) {
+    this.maxCacheSize = sizeInMB * 1024 * 1024
+  }
+
+  async getTotalCacheSize(store = null){
+    try{
+      if(!store){
+        store = (await this.init())
+          .transaction(this.storeName, 'readonly')
+          .objectStore(this.storeName)
+      }
+      const request = store.getAll()
+
+      return new Promise((resolve, reject) => {
+        request.onsuccess = () => {
+          const records = request.result.filter(record => {
+            return (Date.now() - record.timestamp) < this.maxAge
+          })
+          const totalSize = records.reduce((acc, record) => acc + record.size, 0)
+          resolve(totalSize)
+        }
+        request.onerror = () => { reject(request.error) }
+      })
+    }catch{
+      console.error('获取总缓存大小失败:', error)
+      return 0
+    }
+  }
+
+  async clearOldData(store, needToFree){
+    try{
+      const index = store.index('timestamp')
+      const request = index.openCursor()
+
+      return new Promise((resolve, reject) => {
+        request.onsuccess = () => {
+          const cursor = request.result
+          if(cursor && needToFree > 0){
+            cursor.delete()
+            needToFree -= cursor.value.size
+            cursor.continue()
+          }else{
+            resolve()
+          }
+        }
+        request.onerror = () => { reject(request.error) }
+      })
+    }catch{
+      console.error('清理旧数据失败:', error)
+    }
+  }
+
+  async getGlobalCacheStats(){
+    try{
+      const db = await this.init()
+      const tx = db.transaction(this.storeName, 'readonly')
+      const store = tx.objectStore(this.storeName)
+      
+      const request = store.getAll()
+
+      return new Promise((resolve, reject) => {
+        request.onsuccess = () => {
+          const records = request.result.filter(record => (Date.now() - record.timestamp) < this.maxAge)
+
+          const videoIds = new Set(records.map(record => record.videoId))
+
+          const totalSize = records.reduce((acc, record) => acc + (record.size || 0), 0)
+
+          resolve({
+            totalVideos: videoIds.size,
+            totalSize: totalSize,
+            totalFrames: records.length,
+            maxCacheSize: this.maxCacheSize,
+            usagePercent: totalSize > 0 ? (totalSize / this.maxCacheSize) * 100 : 0
+          })
+        }
+        request.onerror = () => { reject(request.error) }
+      })
+    }
+    catch(error){
+      console.error('获取全局缓存统计失败:', error)
+      return {
+        totalVideos: 0,
+        totalSize: 0,
+        totalFrames: 0,
+        maxCacheSize: this.maxCacheSize,
+        usagePercent: 0
+      }
+    }
+  }
+
 
   // 存储帧数据
   async set(id, data, frameType = 'normal', metadata = {}) {
@@ -72,6 +172,9 @@ class FrameCacheManager {
             frameType,
             ...metadata
         }
+
+        // 检查缓存大小
+        await this.enforceCacheLimit(store, record.size)
 
         return store.put(record)
     } catch (error) {
@@ -134,13 +237,15 @@ class FrameCacheManager {
       // 存储新数据
       const promises = frames.map((frameData, index) => {
         const id = `${videoId}_${frameType}_frame_${index}`
+        const dataStr = JSON.stringify(frameData)
         return store.put({
           id,
           data: frameData,
           videoId,
           frameType,  // 新增帧类型
           frameIndex: index,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          size: dataStr.length
         })
       })
       

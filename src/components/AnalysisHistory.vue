@@ -1,10 +1,8 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, defineEmits, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useHistoryStore } from '@/stores/history.js'
 
 const historyStore = useHistoryStore()
-
-const emit = defineEmits(['check'])
 
 // 在组件挂载时获取数据
 onMounted(() => {
@@ -96,19 +94,7 @@ const handleCheck = (id) => {
     alert('未找到对应的分析项');
     return;
   }
-
-  try {
-    // 设置当前分析ID
-    historyStore.setCurrentAnalysisId(item.id);
-    console.log('已设置当前分析ID:', item.id);
-
-    // 触发check事件，通知父组件(Main.vue)切换到分析页面
-    emit('check');
-
-  } catch (error) {
-    console.error('查看操作失败:', error);
-    alert('查看操作失败，请重试');
-  }
+  historyStore.setCurrentAnalysisId(item.id); // 更新状态
 }
 
 // 处理缓存操作
