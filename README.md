@@ -40,7 +40,6 @@
 | 类别 | 技术栈 | 用途 |
 |------|--------|------|
 | **图表库** | ECharts 6.0 | 数据可视化 |
-| **3D渲染** | Three.js | 3D姿态重建 |
 | **数据处理** | PapaParse | CSV数据解析 |
 | **缓存** | IndexedDB | 本地数据缓存 |
 
@@ -184,7 +183,7 @@ npm run preview
 ├── 🚀 开发工具
 │   ├── .vscode/extensions.json    # VSCode推荐插件
 │   └── .gitignore               # Git忽略文件
-```PlainText
+```
 
 ## 🔧 开发规范
 
@@ -195,7 +194,6 @@ npm run preview
 - 文件命名采用kebab-case
 
 ### 提交规范
-```bash
 feat: 新功能
 fix: 修复bug
 docs: 文档更新
@@ -203,7 +201,7 @@ style: 代码格式
 refactor: 代码重构
 test: 测试相关
 chore: 构建/工具
-```
+
 
 ### 分支管理
 - `main`: 生产分支
@@ -247,39 +245,17 @@ CMD ["npm", "run", "preview"]
 
 ## 📋 后续计划
 
-### 近期计划（2024 Q1）
+### 近期计划（2025 Q3）
 - [ ] TypeScript迁移
 - [ ] 单元测试集成
 - [ ] 组件文档生成
 - [ ] 性能优化（懒加载、缓存）
 
-### 中期计划（2024 Q2-Q3）
-- [ ] PWA支持
-- [ ] 国际化（i18n）
-- [ ] 主题系统
-- [ ] 插件系统
-
-### 长期计划（2024 Q4+）
+### 长期计划（2025 Q4+）
 - [ ] 微前端架构
 - [ ] WebAssembly集成
 - [ ] 边缘计算支持
 - [ ] AI模型优化
-
-## 🤝 贡献指南
-
-1. Fork 项目
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 创建 Pull Request
-
-## 📞 支持与联系
-
-- **Issues**: [GitHub Issues](https://github.com/your-repo/issues)
-- **Email**: your-email@example.com
-- **文档**: [项目Wiki](https://github.com/your-repo/wiki)
-
-## 📄 许可证
 
 本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
 
