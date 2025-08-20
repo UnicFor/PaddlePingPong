@@ -6,9 +6,6 @@ import router from "@/router";
 const request = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
 })
 
 // 请求拦截器
@@ -21,8 +18,15 @@ request.interceptors.request.use((config) => {
         fullURL: config.baseURL + config.url,
         method: config.method,
         headers: config.headers,
-        data: config.data
+        data: config.data,
+        dataType: config.data instanceof FormData ? 'FormData' : typeof config.data
     });
+    if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+    } else {
+        // 对于JSON数据，添加Content-Type
+        config.headers['Content-Type'] = 'application/json';
+    }
 
     // 确保在请求时获取最新的token
     const token = authStore.token || localStorage.getItem('jwt')

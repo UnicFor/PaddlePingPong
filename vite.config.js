@@ -23,7 +23,10 @@ export default defineConfig({
       output: {
         chunkFileNames: 'assets/js/[name]-[hash].js',  // 优化chunk文件组织
         entryFileNames: 'assets/js/[name]-[hash].js',
-        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
+        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
+        manualChunks: {
+          upload: ['src/workers/fileUpload.worker.js']
+        }
       }
     }
   },
