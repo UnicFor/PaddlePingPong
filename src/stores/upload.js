@@ -64,7 +64,7 @@ export const useUploadStore = defineStore('upload', () => {
     
     // 更新进度
     const updateProgress = ({ progress: newProgress, speed, time, chunkInfo }) => {
-        progress.value = Number(newProgress) || 0
+        progress.value = Number(newProgress).toFixed(2) || 0
         uploadSpeed.value = speed
         estimatedTime.value = time
         
@@ -72,7 +72,7 @@ export const useUploadStore = defineStore('upload', () => {
             console.log('📊 分片上传进度:', {
                 chunkIndex: chunkInfo.index,
                 totalChunks: chunkInfo.totalChunks,
-                progress: `${Number(newProgress).toFixed(1)}%`,
+                progress: `${Number(newProgress).toFixed(2)}%`,
                 speed: speed,
                 chunkSize: chunkInfo.size
             })

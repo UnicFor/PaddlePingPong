@@ -1,6 +1,6 @@
 export class WorkerManager {
-    constructor(workerScript) {
-        this.worker = new Worker(workerScript, { type: 'module' })
+    constructor(workerInstance) {
+        this.worker = workerInstance
         this.tasks = new Map()
         this.taskId = 0
     }

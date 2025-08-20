@@ -14,7 +14,11 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))  // 保留路径别名
     }
   },
-  // 新增与Flask整合的配置
+  // Worker配置
+  worker: {
+    format: 'es'
+  },
+  // Flask配置
   build: {
     outDir: '../../Python/PaddlePingPong/project/backend/app/static',  // 构建到Flask的静态目录
     assetsDir: 'assets',              // 静态资源子目录

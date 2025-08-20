@@ -1,6 +1,6 @@
 <script setup>
-import { useUploadService } from '@/composables/useUploadService'
-import { useUploadStore } from '@/stores/upload.js'
+import { useUploadService } from '@/composables/uploadService/useUploadService'
+import { useWorkerUploadService } from '@/composables/uploadService/useWorkerUploadService'
 
 const props = defineProps({
   visible: {
@@ -95,7 +95,7 @@ const handleClose = () => {
               <div class="progress-fill" :style="{ width: progress + '%' }"></div>
             </div>
             <div class="progress-info">
-              <span>{{ progress }}%</span>
+              <span>{{ progress.toFixed(2) }}%</span>
               <span>{{ uploadSpeed }}</span>
               <span>{{ estimatedTime }}</span>
             </div>
