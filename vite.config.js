@@ -15,9 +15,6 @@ export default defineConfig({
     }
   },
   // Worker配置
-  worker: {
-    format: 'es'
-  },
   // Flask配置
   build: {
     outDir: '../../Python/PaddlePingPong/project/backend/app/static',  // 构建到Flask的静态目录
@@ -28,9 +25,6 @@ export default defineConfig({
         chunkFileNames: 'assets/js/[name]-[hash].js',  // 优化chunk文件组织
         entryFileNames: 'assets/js/[name]-[hash].js',
         assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
-        manualChunks: {
-          upload: ['src/workers/fileUpload.worker.js']
-        }
       }
     }
   },
