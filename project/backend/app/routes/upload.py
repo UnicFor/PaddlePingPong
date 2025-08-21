@@ -134,53 +134,132 @@ def upload_video():
 @upload_bp.route('/upload/chunk', methods=['POST'])
 @jwt_required
 def upload_chunk():
-    """上传单个分片"""
+    """上传单个分片 - 带详细参数验证日志"""
     try:
-        # 基础验证
+        # === 详细参数验证日志开始 ===
+        current_app.logger.info("=== 分片上传参数验证开始 ===")
+        
+        # 打印所有请求参数
+        current_app.logger.info(f"请求方法: {request.method}")
+        current_app.logger.info(f"Content-Type: {request.headers.get('Content-Type', '未设置')}")
+        current_app.logger.info(f"Content-Length: {request.headers.get('Content-Length', '未设置')}")
+        
+        # 打印所有表单参数
+        current_app.logger.info("表单参数:")
+        for key, value in request.form.items():
+            current_app.logger.info(f"  {key}: {value}")
+        
+        # 打印所有文件参数
+        current_app.logger.info("文件参数:")
+        for key, file in request.files.items():
+            if file:
+                current_app.logger.info(f"  {key}: {file.filename} (大小: {len(file.read()) if file else 0} bytes)")
+                file.seek(0)  # 重置文件指针
+        
+        # 打印请求头中的Authorization
+        auth_header = request.headers.get('Authorization')
+        current_app.logger.info(f"Authorization头: {'存在' if auth_header else '缺失'}")
+        if auth_header:
+            current_app.logger.info(f"  格式: {auth_header[:50]}...")
+        
+        # === 基础验证 ===
         if 'chunk' not in request.files:
+            current_app.logger.error("❌ 缺少分片文件: 'chunk' 不在 request.files 中")
+            current_app.logger.info(f"可用的文件键: {list(request.files.keys())}")
             return jsonify({"success": False, "message": "缺少分片文件"}), 400
 
         chunk = request.files['chunk']
-        index = int(request.form.get('index', 0))
-        total_chunks = int(request.form.get('totalChunks', 1))
-        hash_value = request.form.get('hash', '')
-        filename = request.form.get('filename', '')
+        
+        # 检查chunk参数
+        required_params = ['index', 'totalChunks', 'hash', 'filename']
+        missing_params = []
+        param_values = {}
+        
+        for param in required_params:
+            value = request.form.get(param)
+            if value is None or value == '':
+                missing_params.append(param)
+            else:
+                param_values[param] = value
+        
+        if missing_params:
+            current_app.logger.error(f"❌ 缺少必需参数: {missing_params}")
+            current_app.logger.info(f"已提供的参数: {param_values}")
+            return jsonify({"success": False, "message": f"缺少参数: {missing_params}"}), 400
+        
+        try:
+            index = int(request.form.get('index', 0))
+            total_chunks = int(request.form.get('totalChunks', 1))
+            hash_value = str(request.form.get('hash', ''))
+            filename = str(request.form.get('filename', ''))
+            
+            current_app.logger.info(f"✅ 参数解析成功:")
+            current_app.logger.info(f"  index: {index} (类型: {type(index)})")
+            current_app.logger.info(f"  total_chunks: {total_chunks} (类型: {type(total_chunks)})")
+            current_app.logger.info(f"  hash: {hash_value[:20]}... (长度: {len(hash_value)})")
+            current_app.logger.info(f"  filename: {filename}")
+            
+        except ValueError as e:
+            current_app.logger.error(f"❌ 参数格式错误: {str(e)}")
+            current_app.logger.info(f"原始值 - index: {request.form.get('index')}, totalChunks: {request.form.get('totalChunks')}")
+            return jsonify({"success": False, "message": f"参数格式错误: {str(e)}"}), 400
 
-        # 关键验证：检查文件是否为空
+        # 验证文件
         if not chunk or chunk.filename == '':
+            current_app.logger.error("❌ 上传的文件为空: chunk对象无效或文件名为空")
+            current_app.logger.info(f"chunk对象: {chunk}, filename: {getattr(chunk, 'filename', 'N/A')}")
             return jsonify({"success": False, "message": "上传的文件为空"}), 400
 
         # 检查文件内容
         chunk.seek(0, os.SEEK_END)
         file_size = chunk.tell()
-        chunk.seek(0)  # 重置文件指针
+        chunk.seek(0)
+        
+        current_app.logger.info(f"📁 文件信息: {chunk.filename}, 大小: {file_size} bytes")
 
         if file_size == 0:
+            current_app.logger.error("❌ 上传的文件为空: 文件大小为0字节")
             return jsonify({"success": False, "message": "上传的文件为空"}), 400
 
-        if not filename:
+        # 验证文件名
+        if not filename or filename.strip() == '':
+            current_app.logger.error("❌ 缺少文件名: filename为空或仅包含空白字符")
             return jsonify({"success": False, "message": "缺少文件名"}), 400
 
-        # 解析 JWT 获取用户信息
+        # === JWT认证 ===
         auth_header = request.headers.get('Authorization')
         if not auth_header or not auth_header.startswith('Bearer '):
+            current_app.logger.error("❌ 无效的认证头: Authorization头格式错误")
+            current_app.logger.info(f"Authorization头内容: {auth_header}")
             return jsonify({"success": False, "message": "无效的认证头"}), 401
 
         token = auth_header.split(' ')[1]
-        payload = decode(token, BaseConfig.SECRET_KEY, algorithms=["HS256"])
-        user_phone = payload['phone']
+        try:
+            payload = decode(token, BaseConfig.SECRET_KEY, algorithms=["HS256"])
+            user_phone = payload['phone']
+            current_app.logger.info(f"✅ JWT解析成功: 用户手机号 {user_phone}")
+        except Exception as e:
+            current_app.logger.error(f"❌ JWT解析失败: {str(e)}")
+            return jsonify({"success": False, "message": "JWT解析失败"}), 401
 
         user = User.query.filter_by(phone=user_phone).first()
         if not user:
+            current_app.logger.error(f"❌ 用户不存在: 手机号 {user_phone}")
             return jsonify({"success": False, "message": "用户不存在"}), 404
 
+        current_app.logger.info(f"✅ 用户验证成功: user_id={user.user_id}")
+
+        # === 文件保存 ===
         # 创建分片上传临时目录
+        file_hash = hashlib.md5(filename.encode()).hexdigest()
         temp_dir = os.path.join(
             BaseConfig.UPLOAD_FOLDER,
             CHUNK_UPLOAD_DIR,
             f"user_{user.user_id}",
-            hashlib.md5(filename.encode()).hexdigest()
+            file_hash
         )
+        
+        current_app.logger.info(f"📂 临时目录: {temp_dir}")
         os.makedirs(temp_dir, exist_ok=True)
 
         # 保存分片
@@ -189,13 +268,22 @@ def upload_chunk():
 
         try:
             chunk.save(chunk_path)
+            current_app.logger.info(f"✅ 分片保存成功: {chunk_path}")
 
             # 验证保存的文件
-            if not os.path.exists(chunk_path) or os.path.getsize(chunk_path) == 0:
+            if not os.path.exists(chunk_path):
+                current_app.logger.error("❌ 文件保存失败: 文件不存在")
                 return jsonify({"success": False, "message": "文件保存失败"}), 500
+                
+            saved_size = os.path.getsize(chunk_path)
+            if saved_size != file_size:
+                current_app.logger.error(f"❌ 文件大小不匹配: 期望{file_size}, 实际{saved_size}")
+                return jsonify({"success": False, "message": "文件保存不完整"}), 500
+
+            current_app.logger.info(f"✅ 文件验证通过: 大小{saved_size}字节")
 
         except Exception as e:
-            current_app.logger.error(f"文件保存失败: {str(e)}")
+            current_app.logger.error(f"❌ 文件保存失败: {str(e)}")
             return jsonify({"success": False, "message": "文件保存失败"}), 500
 
         # 保存上传进度
@@ -213,6 +301,9 @@ def upload_chunk():
         with open(progress_file, 'w') as f:
             json.dump(progress, f)
 
+        current_app.logger.info(f"✅ 进度更新成功: 已上传{len(progress['uploaded_chunks'])}/{total_chunks}个分片")
+        current_app.logger.info("=== 分片上传完成 ===")
+
         return jsonify({
             "success": True,
             "message": "分片上传成功",
@@ -224,10 +315,11 @@ def upload_chunk():
         }), 200
 
     except ValueError as e:
-        current_app.logger.error(f"参数格式错误: {str(e)}")
-        return jsonify({"success": False, "message": "参数格式错误"}), 400
+        current_app.logger.error(f"❌ 参数格式错误: {str(e)}")
+        return jsonify({"success": False, "message": f"参数格式错误: {str(e)}"}), 400
     except Exception as e:
-        current_app.logger.error(f"分片上传失败: {str(e)}")
+        current_app.logger.error(f"❌ 分片上传失败: {str(e)}")
+        current_app.logger.error(f"异常类型: {type(e)}")
         return jsonify({
             "success": False,
             "message": "分片上传失败",
@@ -238,7 +330,7 @@ def upload_chunk():
 @upload_bp.route('/upload/merge', methods=['POST'])
 @jwt_required
 def merge_chunks():
-    """合并分片 - 增强修复版"""
+    """合并分片 - 修复版：基于实际文件检测"""
     try:
         data = request.get_json()
         filename = data.get('filename', '')
@@ -272,36 +364,30 @@ def merge_chunks():
         if not os.path.exists(temp_dir):
             return jsonify({"success": False, "message": "上传目录不存在"}), 400
 
-        # 读取进度文件
-        progress_file = os.path.join(temp_dir, UPLOAD_PROGRESS_FILE)
-        try:
-            with open(progress_file, 'r') as f:
-                progress = json.load(f)
-        except:
-            return jsonify({"success": False, "message": "无法读取上传进度"}), 400
-
-        # 关键修复：允许部分缺失并记录详细日志
-        expected_chunks = set(range(total_chunks))
-        uploaded_chunks = set(progress.get("uploaded_chunks", []))
+        # **关键修复：直接扫描实际存在的分片文件**
+        actual_chunks = []
+        for i in range(total_chunks):
+            chunk_path = os.path.join(temp_dir, f"chunk_{i:06d}")
+            if os.path.exists(chunk_path):
+                actual_chunks.append(i)
         
-        # 记录详细信息
-        current_app.logger.info(f"合并检查: 期望{total_chunks}个, 已上传{len(uploaded_chunks)}个")
+        current_app.logger.info(f"实际扫描到的分片: {actual_chunks}")
+        
+        # 基于实际文件进行验证
+        expected_chunks = set(range(total_chunks))
+        uploaded_chunks = set(actual_chunks)
         
         if len(uploaded_chunks) < total_chunks:
             missing = list(expected_chunks - uploaded_chunks)
-            current_app.logger.warning(f"缺失分片: {missing}")
+            current_app.logger.warning(f"实际缺失分片: {missing}")
             
-            # 关键修复：允许继续合并（可选）
-            if len(uploaded_chunks) >= total_chunks * 0.8:  # 80%完成度
-                current_app.logger.warning("分片不完整但继续合并")
-            else:
-                return jsonify({
-                    "success": False,
-                    "message": "分片不完整",
-                    "uploaded": len(uploaded_chunks),
-                    "total": total_chunks,
-                    "missing": missing
-                }), 400
+            return jsonify({
+                "success": False,
+                "message": "分片不完整",
+                "uploaded": len(uploaded_chunks),
+                "total": total_chunks,
+                "missing": missing
+            }), 400
 
         # 验证所有分片文件存在
         for i in range(total_chunks):
