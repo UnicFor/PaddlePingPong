@@ -1,0 +1,1 @@
+import{_ as o}from"./analysis-CDss1SmK.js";import{b as s,e as n,F as t,d as a}from"./vue-vendor-8y2xwPwV.js";const r={};function l(d,e){return a(),s(t,null,[e[0]||(e[0]=n("span",{class:"elegant-text"},"Paddle",-1)),e[1]||(e[1]=n("span",null," PingPong",-1))],64)}const m=o(r,[["render",l],["__scopeId","data-v-a71b8983"]]);export{m as l};

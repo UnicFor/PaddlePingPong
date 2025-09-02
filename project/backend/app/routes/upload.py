@@ -464,12 +464,12 @@ def merge_chunks():
             db.session.commit()
 
             # 启动异步处理
-            # process_video_async(
-            #     input_path=final_path,
-            #     filename=os.path.basename(final_path),
-            #     original_video_id=video_id,
-            #     user_id=user.user_id
-            # )
+            process_video_async(
+                input_path=final_path,
+                filename=os.path.basename(final_path),
+                original_video_id=video_id,
+                user_id=user.user_id
+            )
 
         except Exception as e:
             db.session.rollback()
